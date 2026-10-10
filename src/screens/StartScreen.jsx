@@ -1,7 +1,7 @@
-import { ArrowIcon } from '../components/icons.jsx'
+import { ArrowIcon, ShelfIcon } from '../components/icons.jsx'
 import { Button, Scene } from '../components/ui.jsx'
 
-export function StartScreen({ onStart }) {
+export function StartScreen({ onStart, onOpenShelf }) {
   return (
     <Scene mood="idle" dragonPlace="center">
       <header className="hero">
@@ -11,6 +11,9 @@ export function StartScreen({ onStart }) {
       <div className="counter-front">
         <Button onClick={onStart} className="btn--xl">
           Start <ArrowIcon size={32} />
+        </Button>
+        <Button onClick={onOpenShelf}>
+          <ShelfIcon /> My treats
         </Button>
       </div>
     </Scene>

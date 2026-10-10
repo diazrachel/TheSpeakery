@@ -1,10 +1,12 @@
 // Shows the last speech try when the address has ?debug. For testing only.
 
 import { useEffect, useState } from 'react'
+import { emptyShelf, setShelf } from '../game/shelf.js'
 import { DEBUG_ON } from '../speech/debug.js'
 import { canRecognizeSpeech } from '../speech/recognition.js'
 
-export function DebugPanel() {
+// onSetShelf: lets testers fill or clear the treat shelf for a quick demo.
+export function DebugPanel({ onSetShelf }) {
   const [last, setLast] = useState(null)
 
   useEffect(() => {
@@ -33,6 +35,15 @@ export function DebugPanel() {
       ) : (
         <span>Tap the mic to test.</span>
       )}
+      <span>
+        Shelf:{' '}
+        <button type="button" onClick={() => onSetShelf(setShelf({ ...emptyShelf(), R: 1, S: 1 }))}>
+          R + S baked
+        </button>{' '}
+        <button type="button" onClick={() => onSetShelf(setShelf(emptyShelf()))}>
+          Clear
+        </button>
+      </span>
     </aside>
   )
 }

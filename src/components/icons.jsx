@@ -83,3 +83,12 @@ export const MirrorIcon = (props) => (
     <path d="M9.5 7.5a3 3 0 0 1 2-1.5" />
   </Icon>
 )
+
+// A cupcake, for the treat shelf.
+export const ShelfIcon = (props) => (
+  <Icon {...props}>
+    <path d="M5 12h14l-2 9H7z" />
+    <path d="M5 12a7 5 0 0 1 14 0" />
+    <path d="M12 3v2" />
+  </Icon>
+)

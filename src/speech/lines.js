@@ -41,11 +41,21 @@ export const LINES = {
 
   finishCheer: (sound) => `Amazing! ${sound.finishLine} Tap it to give it to me!`,
   finishThanks: (sound) => `Yum! Thank you for the ${sound.treat}!`,
+
+  shelfAdded: 'Look! Your treat is on the shelf!',
+  shelfFull: 'You baked all three treats! You unlocked a surprise!',
+  shelfOpen: 'Here are all the treats you baked!',
+  shelfEmpty: "Your shelf is empty. Let's bake a treat!",
+
+  feedIntro: "I'm so hungry! Say the word on each treat to feed me!",
+  feedYum: 'Yum! More please!',
+  feedSkip: "Let's try a different treat!",
+  feedDone: 'Yum yum! My tummy is so full! Thank you!',
 }
 
 // Every line, with no repeats. Used by the voice recording script.
 export function allVoiceLines() {
-  const lines = [LINES.pickQuestion, LINES.micAsk, LINES.mirrorOpen, LINES.helpOffer, LINES.bakeAnyway, LINES.stepCheer, LINES.stepToPractice]
+  const lines = [LINES.pickQuestion, LINES.micAsk, LINES.mirrorOpen, LINES.shelfAdded, LINES.shelfFull, LINES.shelfOpen, LINES.shelfEmpty, LINES.feedIntro, LINES.feedYum, LINES.feedSkip, LINES.feedDone, LINES.helpOffer, LINES.bakeAnyway, LINES.stepCheer, LINES.stepToPractice]
   lines.push(LINES.practiceSuccess('intro'), LINES.practiceSuccess('retry'))
 
   for (const id of SOUND_ORDER) {
