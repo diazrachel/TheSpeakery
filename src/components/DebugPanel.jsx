@@ -24,6 +24,7 @@ export function DebugPanel() {
         <>
           <span>Wanted: {last.target}</span>
           <span>Heard: {last.heard || '(nothing)'}</span>
+          <span>Sure: {last.confidence ? `${Math.round(last.confidence * 100)}%` : 'unknown'}</span>
           <span>
             Result: {last.status}
             {last.code ? ` (${last.code})` : ''}

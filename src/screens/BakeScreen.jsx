@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MicButton } from '../components/MicButton.jsx'
 import { Art, Button, Headline, MarkedWord, Scene, SlowSpeakButton } from '../components/ui.jsx'
 import { findNearMiss } from '../game/coach.js'
 import { MISSES_BEFORE_PRACTICE } from '../game/gameReducer.js'
+import { makeWordCheck } from '../game/wordCheck.js'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
 import { useAfterSpeech } from '../speech/useAfterSpeech.js'
@@ -18,6 +19,7 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   const spoken = LINES.stepPrompt(step)
 
   const { status, listen } = useWordListener()
+  const isCorrect = useMemo(() => makeWordCheck(sound, step), [sound, step])
   const afterSpeech = useAfterSpeech()
   // reaction: null | 'cheer' | 'confused'
   const [reaction, setReaction] = useState(null)
@@ -32,10 +34,7 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   }, [spoken])
 
   async function handleMic() {
-    const { status: result, heardOptions } = await listen(step.word, {
-      alsoAccept: step.alsoAccept,
-      nearMisses: step.nearMisses,
-    })
+    const { status: result, heardOptions } = await listen(isCorrect)
     if (result === 'correct') {
       setReaction('cheer')
       afterSpeech(speak(LINES.stepCheer), REACTION_MS, onCorrect)

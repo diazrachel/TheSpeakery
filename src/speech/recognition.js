@@ -24,22 +24,26 @@ export const canRecognizeSpeech = Boolean(BrowserRecognition)
 //   'error'        something else went wrong
 //   'cancelled'    we stopped listening on purpose
 //
-// The promise resolves to { status, heard, heardOptions, code }. `heard` is the
-// best guess (shown only in the ?debug panel). `heardOptions` is all of the
-// browser's guesses, used to pick a coaching tip (src/game/coach.js).
-// Neither is ever stored.
-export function listenForWord(targetWord, { alsoAccept = [], timeoutMs = 8000 } = {}) {
+// isCorrect(options) decides if the browser's guesses count as the word
+// (see src/game/wordCheck.js). options: [{ text, confidence }], best first.
+//
+// The promise resolves to { status, heard, confidence, heardOptions, code }.
+// `heard` and `confidence` are the best guess (shown only in the ?debug panel).
+// `heardOptions` is all of the browser's guesses, used to pick a coaching tip
+// (src/game/coach.js). None of it is ever stored.
+export function listenForWord(isCorrect, { timeoutMs = 8000 } = {}) {
   const recognition = new BrowserRecognition()
   recognition.lang = 'en-US'
   recognition.continuous = false
-  // Interim results let us accept the word the moment it's heard, instead of
-  // waiting for the browser to decide the child has finished talking.
+  // Interim results tell us the child is talking. We only judge the browser's
+  // final answer, because early guesses are often "fixed" versions of the word.
   recognition.interimResults = true
   recognition.maxAlternatives = 5
 
   let finished = false
   let lastHeard = ''
   let lastOptions = []
+  let lastGuesses = []
   let resolvePromise
   let timer
 
@@ -56,23 +60,27 @@ export function listenForWord(targetWord, { alsoAccept = [], timeoutMs = 8000 } 
     } catch {
       // Already stopped.
     }
-    resolvePromise({ status, heard: lastHeard, heardOptions: lastOptions, code })
+    const confidence = lastGuesses[0]?.confidence ?? 0
+    resolvePromise({ status, heard: lastHeard, confidence, heardOptions: lastOptions, code })
+  }
+
+  // Judge the latest guesses (or report that nothing was heard).
+  function judge(code) {
+    if (!lastGuesses.length) finish('no-speech', code)
+    else finish(isCorrect(lastGuesses) ? 'correct' : 'missed', code)
   }
 
   recognition.onresult = (event) => {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i]
-      const alternatives = Array.from(result).map((alt) => alt.transcript)
-      if (alternatives[0]) {
-        lastHeard = alternatives[0]
-        lastOptions = alternatives
-      }
-      if (alternatives.some((text) => matchesWord(text, targetWord, alsoAccept))) {
-        finish('correct')
-        return
+      const guesses = Array.from(result).map((alt) => ({ text: alt.transcript, confidence: alt.confidence }))
+      if (guesses[0]?.text) {
+        lastHeard = guesses[0].text
+        lastGuesses = guesses
+        lastOptions = guesses.map((guess) => guess.text)
       }
       if (result.isFinal) {
-        finish('missed')
+        judge('final')
         return
       }
     }
@@ -88,10 +96,10 @@ export function listenForWord(targetWord, { alsoAccept = [], timeoutMs = 8000 } 
     else finish('error', code)
   }
 
-  // Ended without a final result: if we heard something, it wasn't the word.
-  recognition.onend = () => finish(lastHeard ? 'missed' : 'no-speech', 'ended')
+  // Ended or timed out without a final answer: judge the last early guess.
+  recognition.onend = () => judge('ended')
 
-  timer = setTimeout(() => finish(lastHeard ? 'missed' : 'no-speech', 'timeout'), timeoutMs)
+  timer = setTimeout(() => judge('timeout'), timeoutMs)
 
   try {
     recognition.start()
@@ -100,21 +108,4 @@ export function listenForWord(targetWord, { alsoAccept = [], timeoutMs = 8000 } 
   }
 
   return { promise, cancel: () => finish('cancelled') }
-}
-
-// True when any word in the heard text is the target word
-// (or its plural, or one of the extra spellings in the word list).
-export function matchesWord(heardText, targetWord, alsoAccept = []) {
-  const accepted = [targetWord, ...alsoAccept].map(normalize)
-  const heard = normalize(heardText)
-  if (accepted.includes(heard.replace(/\s/g, ''))) return true
-  return heard.split(' ').some((word) => accepted.includes(word) || accepted.includes(word.replace(/s$/, '')))
-}
-
-function normalize(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, '')
-    .trim()
-    .replace(/\s+/g, ' ')
 }

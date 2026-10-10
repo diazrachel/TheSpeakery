@@ -101,6 +101,9 @@ Finish the main flow first, then the practice book, then the parent section.
   browser hears words, not sounds, so this catches common swaps only. Keep
   tips warm and short, never clinical, and only show near-miss words from the
   list on screen, never anything else the browser heard.
+- `src/game/wordCheck.js` decides what counts as saying the word: only the
+  browser's best final guess, never a near-miss word, and a confidence floor
+  (`MIN_CONFIDENCE`, check it with `?debug`). Keep these rules in that file.
 - Don't change the word lists without asking the team.
 
 ### Practice book

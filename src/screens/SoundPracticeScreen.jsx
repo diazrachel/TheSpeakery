@@ -7,11 +7,12 @@
 // There's no skip for kids. After a few misses the dragon offers grown-up help,
 // and a grown-up can unlock "Let's bake anyway" (components/GrownUpHelp.jsx).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { GrownUpHelp } from '../components/GrownUpHelp.jsx'
 import { MicButton } from '../components/MicButton.jsx'
 import { SoundGuide } from '../components/SoundGuide.jsx'
 import { findNearMiss } from '../game/coach.js'
+import { makeWordCheck } from '../game/wordCheck.js'
 import { Button, Headline, MarkedWord, Scene, SlowSpeakButton, SpeakButton } from '../components/ui.jsx'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
@@ -28,6 +29,7 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   const intro = LINES.guideIntro(sound, mode)
 
   const { status, listen } = useWordListener()
+  const isCorrect = useMemo(() => makeWordCheck(sound, practice), [sound, practice])
   const afterSpeech = useAfterSpeech()
   const [reaction, setReaction] = useState(null)
   const [misses, setMisses] = useState(0)
@@ -40,10 +42,7 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   }, [intro])
 
   async function handleMic() {
-    const { status: result, heardOptions } = await listen(practice.say, {
-      alsoAccept: practice.alsoAccept,
-      nearMisses: practice.nearMisses,
-    })
+    const { status: result, heardOptions } = await listen(isCorrect)
     if (result === 'correct') {
       setReaction('cheer')
       afterSpeech(speak(LINES.practiceSuccess(mode)), REACTION_MS, onDone)

@@ -6,7 +6,6 @@
 //   M to count it as a near miss (like hearing "way" for "ray"), to show a tip.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { exampleNearMiss } from '../game/coach.js'
 import { showDebug } from './debug.js'
 import { canRecognizeSpeech, listenForWord } from './recognition.js'
 import { letMicSettle, stopSpeaking } from './speak.js'
@@ -16,13 +15,15 @@ const MESSAGE_STATUSES = ['no-speech', 'mic-blocked', 'no-mic', 'network', 'erro
 
 // status: idle | listening | no-speech | mic-blocked | no-mic | network | error | unsupported
 //
-// listen() resolves to { status, heardOptions }. heardOptions is what the
-// browser thinks it heard, for picking a tip. Don't save or log it.
+// listen(isCorrect) takes a check from src/game/wordCheck.js and resolves to
+// { status, heardOptions }. heardOptions is what the browser thinks it heard,
+// for picking a tip. Don't save or log it.
 export function useWordListener() {
   const [status, setStatus] = useState('idle')
   const activeRef = useRef(null)
 
-  const listen = useCallback(async (word, { alsoAccept = [], nearMisses = {} } = {}) => {
+  const listen = useCallback(async (isCorrect) => {
+    const word = isCorrect.word
     if (activeRef.current) return { status: 'busy', heardOptions: [] } // already listening; ignore double taps
     if (!canRecognizeSpeech) {
       setStatus('unsupported')
@@ -37,10 +38,10 @@ export function useWordListener() {
     const demoKeyPress = new Promise((resolve) => {
       resolveDemo = resolve
     })
-    const session = listenForWord(word, { alsoAccept })
+    const session = listenForWord(isCorrect)
     activeRef.current = {
       resolveDemo,
-      demoNearMiss: exampleNearMiss(nearMisses),
+      demoNearMiss: isCorrect.demoNearMiss,
       cancel: () => {
         session.cancel()
         resolveDemo({ status: 'cancelled', heard: '', heardOptions: [], code: '' })

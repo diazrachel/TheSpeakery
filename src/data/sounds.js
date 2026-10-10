@@ -50,7 +50,7 @@ export const SOUNDS = {
       // check a sound on its own (like "sssss"), so we use a one-syllable word
       // that starts with it. Extra spellings are what the browser may write.
       practice: { say: 'see', marked: '{s}ee', cue: 'Make a long snake sound, then say see. Sssss, see!', alsoAccept: ['sea', 'c', 'cee', 'si'],
-        nearMisses: { th: ['thee'], sh: ['she'], t: ['tea', 'tee', 't'] } },
+        nearMisses: { th: ['thee', 'the'], sh: ['she'], t: ['tea', 'tee', 't'] } },
       listenWords: 'sun. snap. set.',
       rows: [
         { part: 'Lips', text: 'Smile so your teeth show.' },
@@ -68,7 +68,7 @@ export const SOUNDS = {
         nearMisses: { th: ['that', 'thet'], sh: ['shed', 'shet'], t: ['ted', 'tet'] } },
       { word: 'toast', marked: 'toa{s}t', action: 'Toast the marshmallow', image: art('treat-smore-4'), alsoAccept: ['toasts'],
         nearMisses: { missing: ['tote', 'toad', 'toe'] } },
-      { word: 'smush', marked: '{s}mush', action: 'Smush it all together', image: art('treat-smore-5'), alsoAccept: ['smoosh'],
+      { word: 'smush', marked: '{s}mush', action: 'Smush it all together', image: art('treat-smore-5'), alsoAccept: ['smoosh', 'smooch', 'smushed', 'smooshed', 'smushy'],
         nearMisses: { missing: ['mush', 'much'] } },
     ],
   },
