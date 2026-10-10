@@ -7,7 +7,7 @@
 // There's no skip for kids. After a few misses the dragon offers grown-up help,
 // and a grown-up can unlock "Let's bake anyway" (components/GrownUpHelp.jsx).
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { GrownUpHelp } from '../components/GrownUpHelp.jsx'
 import { MicButton } from '../components/MicButton.jsx'
 import { SoundGuide } from '../components/SoundGuide.jsx'
@@ -15,8 +15,10 @@ import { findNearMiss } from '../game/coach.js'
 import { Button, Headline, MarkedWord, Scene, SlowSpeakButton, SpeakButton } from '../components/ui.jsx'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
+import { useAfterSpeech } from '../speech/useAfterSpeech.js'
 import { LISTEN_MESSAGES, useWordListener } from '../speech/useWordListener.js'
 
+// The shortest time the dragon reacts. It also waits for the dragon to finish talking.
 const REACTION_MS = 1800
 // After this many misses, the dragon asks if a grown-up wants to help.
 const MISSES_BEFORE_HELP_OFFER = 3
@@ -26,18 +28,16 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   const intro = LINES.guideIntro(sound, mode)
 
   const { status, listen } = useWordListener()
+  const afterSpeech = useAfterSpeech()
   const [reaction, setReaction] = useState(null)
   const [misses, setMisses] = useState(0)
   // The near-miss word we heard on the last try (like "tea"), shown in the bubble.
   const [heardNearMiss, setHeardNearMiss] = useState(null)
-  const timer = useRef(null)
   const offerHelp = misses >= MISSES_BEFORE_HELP_OFFER
 
   useEffect(() => {
     speak(intro)
   }, [intro])
-
-  useEffect(() => () => clearTimeout(timer.current), [])
 
   async function handleMic() {
     const { status: result, heardOptions } = await listen(practice.say, {
@@ -46,32 +46,25 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
     })
     if (result === 'correct') {
       setReaction('cheer')
-      speak(LINES.practiceSuccess(mode))
-      timer.current = setTimeout(onDone, REACTION_MS)
+      afterSpeech(speak(LINES.practiceSuccess(mode)), REACTION_MS, onDone)
     } else if (result === 'missed') {
       const missesNow = misses + 1
       const nearMiss = findNearMiss(heardOptions, practice.nearMisses)
       setMisses(missesNow)
       setHeardNearMiss(nearMiss?.heard ?? null)
       setReaction('confused')
-      if (missesNow === MISSES_BEFORE_HELP_OFFER) {
-        speak(LINES.helpOffer)
-      } else if (nearMiss) {
-        // A tip that fits the sound swap we heard.
-        speak(LINES.practiceCoach(sound, nearMiss.swap))
-      } else {
-        speak(LINES.practiceRetry(sound))
-      }
-      timer.current = setTimeout(() => setReaction(null), REACTION_MS)
+      let line = LINES.practiceRetry(sound)
+      if (missesNow === MISSES_BEFORE_HELP_OFFER) line = LINES.helpOffer
+      else if (nearMiss) line = LINES.practiceCoach(sound, nearMiss.swap) // a tip that fits the swap we heard
+      // The mic comes back after the tip, so tapping it can't cut the tip off.
+      afterSpeech(speak(line), REACTION_MS, () => setReaction(null))
     }
   }
 
   // A grown-up chose to let the child keep baking.
   function bakeAnyway() {
-    clearTimeout(timer.current)
     setReaction('proud')
-    speak(LINES.bakeAnyway)
-    timer.current = setTimeout(onDone, REACTION_MS)
+    afterSpeech(speak(LINES.bakeAnyway), REACTION_MS, onDone)
   }
 
   const listening = status === 'listening'
@@ -119,7 +112,7 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
           // Only when the browser can't listen at all. That's not the child's fault.
           <Button onClick={onDone}>Keep going</Button>
         ) : (
-          <MicButton listening={listening} disabled={reaction === 'cheer' || reaction === 'proud'} onPress={handleMic} />
+          <MicButton listening={listening} disabled={reaction !== null} onPress={handleMic} />
         )}
       </div>
 

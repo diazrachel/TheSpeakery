@@ -156,7 +156,9 @@ Finish the main flow first, then the practice book, then the parent section.
 - **Read-aloud:** recorded ElevenLabs mp3s in `public/assets/voice/`, played by
   `src/speech/speak.js`, with the browser's built-in voice as the fallback for any
   line that isn't recorded. Every spoken line lives in `src/speech/lines.js`;
-  don't put spoken text straight into screens. After changing lines, a teammate
+  don't put spoken text straight into screens.
+  `speak()` returns a promise that finishes when the line ends. To move on after
+  the dragon talks, use `useAfterSpeech` so the voice never gets cut off. After changing lines, a teammate
   runs `npm run voice` (it needs their ElevenLabs key in `.env`). Never ask for,
   print, or commit the key.
 - **Hosting:** TODO. Ask a teammate before setting anything up.

@@ -89,6 +89,13 @@ async function textToSpeech({ baseUrl, apiKey, voiceId, model, text }) {
     if (response.ok) return Buffer.from(await response.arrayBuffer())
 
     const details = await response.text().catch(() => '')
+    if (details.includes('quota_exceeded')) {
+      throw new Error(
+        'Your ElevenLabs account is out of characters for this month. The lines recorded so far are saved,\n' +
+          'and the game uses the browser voice for the rest. Add credits, or use a teammate\'s key, then run\n' +
+          '`npm run voice` again. It skips lines that are already recorded.',
+      )
+    }
     if (response.status === 401 || response.status === 403) {
       throw new Error(`ElevenLabs didn't accept the API key (${response.status}). Check ELEVENLABS_API_KEY in .env.\n${details}`)
     }

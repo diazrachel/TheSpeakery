@@ -3,6 +3,10 @@
 // If the line was recorded with ElevenLabs (see `npm run voice` and
 // public/assets/voice/manifest.json), it plays that mp3. Otherwise it falls
 // back to the browser's built-in voice, so the game always talks.
+//
+// speak() returns a promise that finishes when the line is done (or was
+// stopped). Screens wait for it before moving on, so the dragon never gets
+// cut off by the next screen. See useAfterSpeech.js.
 
 const VOICE_FOLDER = '/assets/voice/'
 
@@ -12,6 +16,11 @@ export const NORMAL = 'normal'
 export const SLOW = 'slow'
 const CLIP_RATE = { normal: 1, slow: 0.6 }
 const BROWSER_RATE = { normal: 0.85, slow: 0.4 }
+
+// If a line somehow never reports that it ended, stop waiting after this long.
+const LONGEST_LINE_MS = 45000
+// When a line is interrupted, fade it out over about this long instead of a hard cut.
+const FADE_MS = 150
 
 const canUseBrowserVoice = typeof window !== 'undefined' && 'speechSynthesis' in window
 
@@ -29,27 +38,44 @@ const recordings =
 const REPEAT_WINDOW_MS = 1000
 let lastKey = ''
 let lastTime = 0
+let lastDone = Promise.resolve()
 
 let currentClip = null
+// Chrome stops talking partway through if nothing holds on to the utterance.
+let currentUtterance = null
+let finishCurrent = () => {}
 let requestId = 0
 
 export function speak(text, { speed = NORMAL } = {}) {
   const key = `${speed}|${text}`
   const now = Date.now()
-  if (key === lastKey && now - lastTime < REPEAT_WINDOW_MS) return
+  if (key === lastKey && now - lastTime < REPEAT_WINDOW_MS) return lastDone
   lastKey = key
   lastTime = now
 
   stopAudio()
   const thisRequest = ++requestId
 
-  recordings.then((lines) => {
-    // Something newer was asked for while we waited. Let that one play.
-    if (thisRequest !== requestId) return
-    const file = lines[text]
-    if (file) playClip(`${VOICE_FOLDER}${file}`, speed, text)
-    else browserSpeak(text, speed)
+  lastDone = new Promise((resolve) => {
+    let settled = false
+    const safety = setTimeout(() => finish(), LONGEST_LINE_MS)
+    function finish() {
+      if (settled) return
+      settled = true
+      clearTimeout(safety)
+      resolve()
+    }
+    finishCurrent = finish
+
+    recordings.then((lines) => {
+      // Something newer was asked for while we waited. Let that one play.
+      if (thisRequest !== requestId) return finish()
+      const file = lines[text]
+      if (file) playClip(`${VOICE_FOLDER}${file}`, speed, text, finish)
+      else browserSpeak(text, speed, finish)
+    })
   })
+  return lastDone
 }
 
 export function stopSpeaking() {
@@ -58,30 +84,61 @@ export function stopSpeaking() {
   stopAudio()
 }
 
-function playClip(url, speed, text) {
+function playClip(url, speed, text, finish) {
   const clip = new Audio(url)
   clip.playbackRate = CLIP_RATE[speed]
   clip.preservesPitch = true
+  clip.onended = finish
   currentClip = clip
   clip.play().catch(() => {
     // The file is missing or the browser blocked it: use the built-in voice.
-    if (currentClip === clip) browserSpeak(text, speed)
+    if (currentClip === clip) browserSpeak(text, speed, finish)
+    else finish()
   })
 }
 
-function browserSpeak(text, speed) {
-  if (!canUseBrowserVoice) return
+function browserSpeak(text, speed, finish) {
+  if (!canUseBrowserVoice) return finish()
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = 'en-US'
   utterance.rate = BROWSER_RATE[speed]
   utterance.pitch = 1.1
+  utterance.onend = finish
+  utterance.onerror = finish
+  // Some browsers forget to say when they're done. Don't wait much longer than the line should take.
+  const expectedMs = (text.length * 75) / BROWSER_RATE[speed] + 1500
+  setTimeout(finish, expectedMs)
+  currentUtterance = utterance
   window.speechSynthesis.speak(utterance)
 }
 
 function stopAudio() {
+  finishCurrent()
+  finishCurrent = () => {}
   if (currentClip) {
-    currentClip.pause()
+    fadeOut(currentClip)
     currentClip = null
   }
   if (canUseBrowserVoice) window.speechSynthesis.cancel()
+  currentUtterance = null
+}
+
+// Turns a clip down quickly, then stops it, so an interruption sounds soft.
+function fadeOut(clip) {
+  const steps = 5
+  let step = 0
+  const timer = setInterval(() => {
+    step++
+    if (step >= steps) {
+      clearInterval(timer)
+      clip.pause()
+      return
+    }
+    // Some phones don't allow changing the volume. Then it just stops at the end.
+    try {
+      clip.volume = 1 - step / steps
+    } catch {
+      // ignore
+    }
+  }, FADE_MS / steps)
 }

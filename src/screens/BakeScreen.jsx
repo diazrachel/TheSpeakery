@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MicButton } from '../components/MicButton.jsx'
 import { Art, Button, Headline, MarkedWord, Scene, SlowSpeakButton } from '../components/ui.jsx'
 import { findNearMiss } from '../game/coach.js'
 import { MISSES_BEFORE_PRACTICE } from '../game/gameReducer.js'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
+import { useAfterSpeech } from '../speech/useAfterSpeech.js'
 import { LISTEN_MESSAGES, useWordListener } from '../speech/useWordListener.js'
 
-// How long the dragon reacts before the game moves on.
+// The shortest time the dragon reacts before the game moves on.
+// (It also waits for the dragon to finish talking.)
 const REACTION_MS = 1500
 
 export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
@@ -16,20 +18,18 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   const spoken = LINES.stepPrompt(step)
 
   const { status, listen } = useWordListener()
+  const afterSpeech = useAfterSpeech()
   // reaction: null | 'cheer' | 'confused'
   const [reaction, setReaction] = useState(null)
   const [misses, setMisses] = useState(0)
   // The near-miss word we heard on the last try (like "way"), shown in the bubble.
   const [heardNearMiss, setHeardNearMiss] = useState(null)
-  const timer = useRef(null)
 
   // Read the prompt out loud. (App gives each step a fresh screen, so this
   // runs once per step.)
   useEffect(() => {
     speak(spoken)
   }, [spoken])
-
-  useEffect(() => () => clearTimeout(timer.current), [])
 
   async function handleMic() {
     const { status: result, heardOptions } = await listen(step.word, {
@@ -38,8 +38,7 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
     })
     if (result === 'correct') {
       setReaction('cheer')
-      speak(LINES.stepCheer)
-      timer.current = setTimeout(onCorrect, REACTION_MS)
+      afterSpeech(speak(LINES.stepCheer), REACTION_MS, onCorrect)
     } else if (result === 'missed') {
       const missesNow = misses + 1
       const nearMiss = findNearMiss(heardOptions, step.nearMisses)
@@ -48,12 +47,12 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
       setReaction('confused')
       if (missesNow >= MISSES_BEFORE_PRACTICE) {
         // Missed it again: go practice the sound, then come back to this word.
-        speak(LINES.stepToPractice)
-        timer.current = setTimeout(onMissed, REACTION_MS + 400)
+        afterSpeech(speak(LINES.stepToPractice), REACTION_MS + 400, onMissed)
       } else {
         // A tip that fits the sound swap we heard, or the general tip for this sound.
-        speak(nearMiss ? LINES.stepCoach(sound, step, nearMiss.swap) : LINES.stepRetry(sound, step))
-        timer.current = setTimeout(() => setReaction(null), REACTION_MS)
+        // The mic comes back after the tip, so tapping it can't cut the tip off.
+        const tip = nearMiss ? LINES.stepCoach(sound, step, nearMiss.swap) : LINES.stepRetry(sound, step)
+        afterSpeech(speak(tip), REACTION_MS, () => setReaction(null))
       }
     }
   }
