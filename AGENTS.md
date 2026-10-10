@@ -50,7 +50,7 @@ Finish the main flow first, then the practice book, then the parent section.
 - The team chose to require a correct sound practice before baking, with no
   skip button for kids. After 3 misses the dragon offers "Grown-up help": a
   grown-up presses and holds for 3 seconds to unlock "Let's bake anyway"
-  (`src/components/GrownUpHelp.jsx`). Keep the Y/N demo keys working, and keep
+  (`src/components/GrownUpHelp.jsx`). Keep the Y/N/M demo keys working, and keep
   the "Keep going" button for browsers that can't listen at all. Don't add a
   kid-facing skip without asking the team.
 
@@ -94,6 +94,13 @@ Finish the main flow first, then the practice book, then the parent section.
   around the letters that make the target sound (like '{c}a{k}e'). The game
   highlights those letters, and the turtle button reads just the word slowly.
   Update `marked` whenever a word changes.
+- After a missed word, the dragon gives a tip (`src/game/coach.js`). Each word
+  lists `nearMisses`: real words the browser writes when a child swaps the
+  sound ("way" for "ray", "tea" for "key"), grouped by which tip in the
+  sound's `coach` fits. Anything else gets the sound's `general` tip. The
+  browser hears words, not sounds, so this catches common swaps only. Keep
+  tips warm and short, never clinical, and only show near-miss words from the
+  list on screen, never anything else the browser heard.
 - Don't change the word lists without asking the team.
 
 ### Practice book

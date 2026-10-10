@@ -24,7 +24,9 @@ Other commands:
 ## Demo backup
 
 If speech recognition acts up during the live demo, tap the mic and then press
-**Y** on the keyboard to count the word as correct, or **N** to count it as missed.
+**Y** on the keyboard to count the word as correct, **N** to count it as missed,
+or **M** to count it as a near miss (like hearing "way" for "ray"), so the dragon
+gives a coaching tip.
 Kids can also always tap "Keep baking" on the practice screen.
 
 ## Where things live
@@ -79,7 +81,8 @@ recorded, the game uses the browser voice for it, so nothing breaks.
    ```
    The mp3s land in `public/assets/voice/`. Then run `npm run dev` and listen.
 
-There are 86 lines (about 4,300 characters, which is what ElevenLabs counts).
+There are 116 lines (about 7,100 characters, which is what ElevenLabs counts).
+Rerunning only records new or changed lines, so it costs much less.
 Running it again only records new or changed lines. To switch voices, change
 `ELEVENLABS_VOICE_ID` and run `npm run voice -- --all`.
 

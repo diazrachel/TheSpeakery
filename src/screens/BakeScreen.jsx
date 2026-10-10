@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MicButton } from '../components/MicButton.jsx'
 import { Art, Button, Headline, MarkedWord, Scene, SlowSpeakButton } from '../components/ui.jsx'
+import { findNearMiss } from '../game/coach.js'
 import { MISSES_BEFORE_PRACTICE } from '../game/gameReducer.js'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
@@ -18,6 +19,8 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   // reaction: null | 'cheer' | 'confused'
   const [reaction, setReaction] = useState(null)
   const [misses, setMisses] = useState(0)
+  // The near-miss word we heard on the last try (like "way"), shown in the bubble.
+  const [heardNearMiss, setHeardNearMiss] = useState(null)
   const timer = useRef(null)
 
   // Read the prompt out loud. (App gives each step a fresh screen, so this
@@ -29,21 +32,27 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   useEffect(() => () => clearTimeout(timer.current), [])
 
   async function handleMic() {
-    const result = await listen(step.word, step.alsoAccept)
+    const { status: result, heardOptions } = await listen(step.word, {
+      alsoAccept: step.alsoAccept,
+      nearMisses: step.nearMisses,
+    })
     if (result === 'correct') {
       setReaction('cheer')
       speak(LINES.stepCheer)
       timer.current = setTimeout(onCorrect, REACTION_MS)
     } else if (result === 'missed') {
       const missesNow = misses + 1
+      const nearMiss = findNearMiss(heardOptions, step.nearMisses)
       setMisses(missesNow)
+      setHeardNearMiss(nearMiss?.heard ?? null)
       setReaction('confused')
       if (missesNow >= MISSES_BEFORE_PRACTICE) {
         // Missed it again: go practice the sound, then come back to this word.
         speak(LINES.stepToPractice)
         timer.current = setTimeout(onMissed, REACTION_MS + 400)
       } else {
-        speak(LINES.stepRetry(step))
+        // A tip that fits the sound swap we heard, or the general tip for this sound.
+        speak(nearMiss ? LINES.stepCoach(sound, step, nearMiss.swap) : LINES.stepRetry(sound, step))
         timer.current = setTimeout(() => setReaction(null), REACTION_MS)
       }
     }
@@ -53,7 +62,8 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   const message = LISTEN_MESSAGES[status]
   const treatNow = reaction === 'cheer' ? step.image : treatBefore
   const mood = reaction ?? (listening ? 'listening' : 'idle')
-  const confusedLine = misses >= MISSES_BEFORE_PRACTICE ? 'Hmm? Let’s practice!' : 'Hmm? Try again!'
+  let confusedLine = misses >= MISSES_BEFORE_PRACTICE ? 'Hmm? Let’s practice!' : 'Hmm? Try again!'
+  if (heardNearMiss && misses < MISSES_BEFORE_PRACTICE) confusedLine = `Hmm? I heard “${heardNearMiss}”!`
   const says = reaction === 'cheer' ? 'You did it!' : reaction === 'confused' ? confusedLine : null
 
   return (

@@ -24,8 +24,10 @@ export const canRecognizeSpeech = Boolean(BrowserRecognition)
 //   'error'        something else went wrong
 //   'cancelled'    we stopped listening on purpose
 //
-// The promise resolves to { status, heard, code }. `heard` is only used for
-// the ?debug panel and is never stored.
+// The promise resolves to { status, heard, heardOptions, code }. `heard` is the
+// best guess (shown only in the ?debug panel). `heardOptions` is all of the
+// browser's guesses, used to pick a coaching tip (src/game/coach.js).
+// Neither is ever stored.
 export function listenForWord(targetWord, { alsoAccept = [], timeoutMs = 8000 } = {}) {
   const recognition = new BrowserRecognition()
   recognition.lang = 'en-US'
@@ -37,6 +39,7 @@ export function listenForWord(targetWord, { alsoAccept = [], timeoutMs = 8000 } 
 
   let finished = false
   let lastHeard = ''
+  let lastOptions = []
   let resolvePromise
   let timer
 
@@ -53,14 +56,17 @@ export function listenForWord(targetWord, { alsoAccept = [], timeoutMs = 8000 } 
     } catch {
       // Already stopped.
     }
-    resolvePromise({ status, heard: lastHeard, code })
+    resolvePromise({ status, heard: lastHeard, heardOptions: lastOptions, code })
   }
 
   recognition.onresult = (event) => {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i]
       const alternatives = Array.from(result).map((alt) => alt.transcript)
-      if (alternatives[0]) lastHeard = alternatives[0]
+      if (alternatives[0]) {
+        lastHeard = alternatives[0]
+        lastOptions = alternatives
+      }
       if (alternatives.some((text) => matchesWord(text, targetWord, alsoAccept))) {
         finish('correct')
         return

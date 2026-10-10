@@ -11,6 +11,13 @@
 // sound. The game highlights those letters. "cake" has two: '{c}a{k}e'.
 // "smush" only marks the first s, because the "sh" at the end is a different sound.
 //
+// `coach` holds short tips the dragon gives after a missed word. `nearMisses`
+// lists real words the browser often writes when a child swaps the target
+// sound (like "way" for "ray"), grouped by which tip fits. If the browser hears
+// one of them, the dragon gives that tip. Otherwise it gives the `general` tip.
+// The browser hears words, not sounds, so this only catches swaps that turn
+// into a different real word. Tips are drafts an SLP should review.
+//
 // Each treat has a starting picture and one picture per step. A step's `image`
 // is what the treat looks like after the child says that step's word.
 // The current pictures are SVG stand-ins made by tools/make_treats.py.
@@ -29,13 +36,21 @@ export const SOUNDS = {
     finishLine: 'You made a s’more!',
     icon: art('treat-smore-5'),
     tip: 'Smile, keep your teeth close together, and let the air hiss out like a snake: sssss.',
+    coach: {
+      general: 'Smile and hiss like a snake: sssss!',
+      th: 'Keep your tongue behind your teeth, and hiss like a snake: sssss!',
+      sh: 'Smile big, and make a skinny snake sound: sssss!',
+      t: 'Let the air keep going, like a long snake: sssss!',
+      missing: 'Let’s hear the snake sound! Sssss!',
+    },
     // How to make the sound, shown before baking and when practicing.
     guide: {
       nickname: 'the snake sound',
       // Practice the sound in a tiny word before baking. The browser can't
       // check a sound on its own (like "sssss"), so we use a one-syllable word
       // that starts with it. Extra spellings are what the browser may write.
-      practice: { say: 'see', marked: '{s}ee', cue: 'Make a long snake sound, then say see. Sssss, see!', alsoAccept: ['sea', 'c', 'cee', 'si'] },
+      practice: { say: 'see', marked: '{s}ee', cue: 'Make a long snake sound, then say see. Sssss, see!', alsoAccept: ['sea', 'c', 'cee', 'si'],
+        nearMisses: { th: ['thee'], sh: ['she'], t: ['tea', 'tee', 't'] } },
       listenWords: 'sun. snap. set.',
       rows: [
         { part: 'Lips', text: 'Smile so your teeth show.' },
@@ -47,10 +62,14 @@ export const SOUNDS = {
     // Start: a whole graham cracker on a plate.
     startImage: art('treat-smore-1'),
     steps: [
-      { word: 'snap', marked: '{s}nap', action: 'Snap the cracker in half', image: art('treat-smore-2') },
-      { word: 'set', marked: '{s}et', action: 'Set the chocolate on top', image: art('treat-smore-3') },
-      { word: 'toast', marked: 'toa{s}t', action: 'Toast the marshmallow', image: art('treat-smore-4'), alsoAccept: ['toasts'] },
-      { word: 'smush', marked: '{s}mush', action: 'Smush it all together', image: art('treat-smore-5'), alsoAccept: ['smoosh'] },
+      { word: 'snap', marked: '{s}nap', action: 'Snap the cracker in half', image: art('treat-smore-2'),
+        nearMisses: { missing: ['nap', 'knap'], t: ['tap'] } },
+      { word: 'set', marked: '{s}et', action: 'Set the chocolate on top', image: art('treat-smore-3'),
+        nearMisses: { th: ['that', 'thet'], sh: ['shed', 'shet'], t: ['ted', 'tet'] } },
+      { word: 'toast', marked: 'toa{s}t', action: 'Toast the marshmallow', image: art('treat-smore-4'), alsoAccept: ['toasts'],
+        nearMisses: { missing: ['tote', 'toad', 'toe'] } },
+      { word: 'smush', marked: '{s}mush', action: 'Smush it all together', image: art('treat-smore-5'), alsoAccept: ['smoosh'],
+        nearMisses: { missing: ['mush', 'much'] } },
     ],
   },
   R: {
@@ -63,9 +82,15 @@ export const SOUNDS = {
     finishLine: 'You made a cinnamon roll!',
     icon: art('treat-roll-5'),
     tip: 'Pull your tongue back and lift it a little, then growl like a friendly tiger: rrrr.',
+    coach: {
+      general: 'Pull your tongue back and growl like a tiger: rrrr!',
+      w: 'Let’s make the R stronger! Pull your tongue back and growl like a tiger: rrrr!',
+      l: 'Let’s make the R stronger! Pull your tongue back so the tip doesn’t touch: rrrr!',
+    },
     guide: {
       nickname: 'the tiger sound',
-      practice: { say: 'ray', marked: '{r}ay', cue: 'Growl like a tiger, then say ray. Rrrrr, ray!', alsoAccept: ['rae', 're', 'rey'] },
+      practice: { say: 'ray', marked: '{r}ay', cue: 'Growl like a tiger, then say ray. Rrrrr, ray!', alsoAccept: ['rae', 're', 'rey'],
+        nearMisses: { w: ['way', 'weigh', 'whey', 'hey'], l: ['lay', 'lei'] } },
       listenWords: 'red. roll. ready.',
       rows: [
         { part: 'Lips', text: 'Make your lips a little round.' },
@@ -77,10 +102,14 @@ export const SOUNDS = {
     // Start: a ball of dough on a wooden board.
     startImage: art('treat-roll-1'),
     steps: [
-      { word: 'roll', marked: '{r}oll', action: 'Roll out the dough', image: art('treat-roll-2'), alsoAccept: ['role', 'rolled'] },
-      { word: 'brown', marked: 'b{r}own', action: 'Add the brown sugar', image: art('treat-roll-3') },
-      { word: 'wrap', marked: '{wr}ap', action: 'Wrap it up into a roll', image: art('treat-roll-4'), alsoAccept: ['rap', 'wrapped'] },
-      { word: 'ready', marked: '{r}eady', action: 'Bake it until it’s golden', image: art('treat-roll-5') },
+      { word: 'roll', marked: '{r}oll', action: 'Roll out the dough', image: art('treat-roll-2'), alsoAccept: ['role', 'rolled'],
+        nearMisses: { w: ['whole', 'hole', 'wall', 'wool'], l: ['loll', 'lull'] } },
+      { word: 'brown', marked: 'b{r}own', action: 'Add the brown sugar', image: art('treat-roll-3'),
+        nearMisses: { w: ['bound', 'bone', 'bowen'], l: ['blown', 'blond'] } },
+      { word: 'wrap', marked: '{wr}ap', action: 'Wrap it up into a roll', image: art('treat-roll-4'), alsoAccept: ['rap', 'wrapped'],
+        nearMisses: { w: ['whop', 'wop'], l: ['lap'] } },
+      { word: 'ready', marked: '{r}eady', action: 'Bake it until it’s golden', image: art('treat-roll-5'),
+        nearMisses: { w: ['wendy', 'weedy', 'eddie', 'heady'], l: ['lady'] } },
     ],
   },
   K: {
@@ -93,9 +122,15 @@ export const SOUNDS = {
     finishLine: 'You made a cupcake!',
     icon: art('treat-cupcake-5'),
     tip: 'Open your mouth, lift the back of your tongue, and make a little pop: k, k, k.',
+    coach: {
+      general: 'Lift the back of your tongue and make a little pop: k, k!',
+      t: 'Let’s pop it from the back! Keep your tongue tip down: k, k!',
+      missing: 'Let’s hear the pop! K, k, k!',
+    },
     guide: {
       nickname: 'the popping sound',
-      practice: { say: 'key', marked: '{k}ey', cue: 'Make a little pop, then say key. K, k, key!', alsoAccept: ['k', 'kee', 'ki', 'qi'] },
+      practice: { say: 'key', marked: '{k}ey', cue: 'Make a little pop, then say key. K, k, key!', alsoAccept: ['k', 'kee', 'ki', 'qi'],
+        nearMisses: { t: ['tea', 'tee', 't'], missing: ['he'] } },
       listenWords: 'key. cup. cake.',
       rows: [
         { part: 'Mouth', text: 'Open your mouth a little.' },
@@ -107,10 +142,14 @@ export const SOUNDS = {
     // Start: an empty cupcake liner on a plate.
     startImage: art('treat-cupcake-1'),
     steps: [
-      { word: 'cup', marked: '{c}up', action: 'Fill the cup with batter', image: art('treat-cupcake-2') },
-      { word: 'bake', marked: 'ba{k}e', action: 'Bake it in the oven', image: art('treat-cupcake-3'), alsoAccept: ['baked'] },
-      { word: 'cake', marked: '{c}a{k}e', action: 'Frost the cake', image: art('treat-cupcake-4') },
-      { word: 'candy', marked: '{c}andy', action: 'Top it with candy', image: art('treat-cupcake-5') },
+      { word: 'cup', marked: '{c}up', action: 'Fill the cup with batter', image: art('treat-cupcake-2'),
+        nearMisses: { t: ['tup', 'top', 'tub', 'tough'], missing: ['up'] } },
+      { word: 'bake', marked: 'ba{k}e', action: 'Bake it in the oven', image: art('treat-cupcake-3'), alsoAccept: ['baked'],
+        nearMisses: { t: ['bait', 'bate'], missing: ['bay'] } },
+      { word: 'cake', marked: '{c}a{k}e', action: 'Frost the cake', image: art('treat-cupcake-4'),
+        nearMisses: { t: ['take', 'tate', 'tape'], missing: ['ache'] } },
+      { word: 'candy', marked: '{c}andy', action: 'Top it with candy', image: art('treat-cupcake-5'),
+        nearMisses: { t: ['tandy', 'dandy'], missing: ['andy'] } },
     ],
   },
 }

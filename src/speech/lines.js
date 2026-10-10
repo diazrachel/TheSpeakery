@@ -24,13 +24,16 @@ export const LINES = {
   listenWords: (sound) => `Listen: ${sound.guide.listenWords}`,
   practiceCue: (sound) => sound.guide.practice.cue,
   practiceRetry: (sound) => `Hmm? Let's try again. ${sound.guide.practice.cue}`,
+  // A tip for a common sound swap we heard (see src/game/coach.js).
+  practiceCoach: (sound, swap) => `Hmm? ${sound.coach[swap]} Say ${sound.guide.practice.say}.`,
   practiceSuccess: (mode) => (mode === 'intro' ? "You did it! Let's bake!" : "You did it! Let's get back to baking!"),
   helpOffer: "That's a tricky one! You're working so hard. Want a grown-up to help?",
   bakeAnyway: "Great practicing! Let's bake!",
 
   stepPrompt: (step) => `${step.action}! Say ${step.word}.`,
   stepCheer: 'Yay! You did it!',
-  stepRetry: (step) => `Hmm? Let's try again. Say ${step.word}.`,
+  stepRetry: (sound, step) => `Hmm? Let's try again. ${sound.coach.general} Say ${step.word}.`,
+  stepCoach: (sound, step, swap) => `Hmm? ${sound.coach[swap]} Say ${step.word}.`,
   stepToPractice: "Hmm? Let's practice the sound together.",
   // Just the word by itself. The turtle button plays this same clip slowed down.
   word: (word) => word,
@@ -54,13 +57,15 @@ export function allVoiceLines() {
       LINES.listenWords(sound),
       LINES.practiceCue(sound),
       LINES.practiceRetry(sound),
+      ...Object.keys(sound.guide.practice.nearMisses ?? {}).map((swap) => LINES.practiceCoach(sound, swap)),
       LINES.word(sound.guide.practice.say),
       LINES.finishCheer(sound),
       LINES.finishThanks(sound),
     )
     for (const row of sound.guide.rows) lines.push(LINES.guideRow(row))
     for (const step of sound.steps) {
-      lines.push(LINES.stepPrompt(step), LINES.stepRetry(step), LINES.word(step.word))
+      lines.push(LINES.stepPrompt(step), LINES.stepRetry(sound, step), LINES.word(step.word))
+      for (const swap of Object.keys(step.nearMisses ?? {})) lines.push(LINES.stepCoach(sound, step, swap))
     }
   }
   return [...new Set(lines)]

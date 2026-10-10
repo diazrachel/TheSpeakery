@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { GrownUpHelp } from '../components/GrownUpHelp.jsx'
 import { MicButton } from '../components/MicButton.jsx'
 import { SoundGuide } from '../components/SoundGuide.jsx'
+import { findNearMiss } from '../game/coach.js'
 import { Button, Headline, MarkedWord, Scene, SlowSpeakButton, SpeakButton } from '../components/ui.jsx'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
@@ -27,6 +28,8 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   const { status, listen } = useWordListener()
   const [reaction, setReaction] = useState(null)
   const [misses, setMisses] = useState(0)
+  // The near-miss word we heard on the last try (like "tea"), shown in the bubble.
+  const [heardNearMiss, setHeardNearMiss] = useState(null)
   const timer = useRef(null)
   const offerHelp = misses >= MISSES_BEFORE_HELP_OFFER
 
@@ -37,17 +40,25 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   useEffect(() => () => clearTimeout(timer.current), [])
 
   async function handleMic() {
-    const result = await listen(practice.say, practice.alsoAccept)
+    const { status: result, heardOptions } = await listen(practice.say, {
+      alsoAccept: practice.alsoAccept,
+      nearMisses: practice.nearMisses,
+    })
     if (result === 'correct') {
       setReaction('cheer')
       speak(LINES.practiceSuccess(mode))
       timer.current = setTimeout(onDone, REACTION_MS)
     } else if (result === 'missed') {
       const missesNow = misses + 1
+      const nearMiss = findNearMiss(heardOptions, practice.nearMisses)
       setMisses(missesNow)
+      setHeardNearMiss(nearMiss?.heard ?? null)
       setReaction('confused')
       if (missesNow === MISSES_BEFORE_HELP_OFFER) {
         speak(LINES.helpOffer)
+      } else if (nearMiss) {
+        // A tip that fits the sound swap we heard.
+        speak(LINES.practiceCoach(sound, nearMiss.swap))
       } else {
         speak(LINES.practiceRetry(sound))
       }
@@ -68,7 +79,11 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   const mood = reaction === 'proud' ? 'cheer' : (reaction ?? (listening ? 'listening' : 'encourage'))
   let says = mode === 'intro' ? 'Watch the mouth picture!' : 'Let’s practice the sound!'
   if (offerHelp) says = 'Want a grown-up to help?'
-  if (reaction === 'confused') says = offerHelp ? 'Tricky one! Want a grown-up to help?' : 'Hmm? Let’s try again!'
+  if (reaction === 'confused') {
+    if (offerHelp) says = 'Tricky one! Want a grown-up to help?'
+    else if (heardNearMiss) says = `Hmm? I heard “${heardNearMiss}”!`
+    else says = 'Hmm? Let’s try again!'
+  }
   if (reaction === 'cheer') says = 'You did it!'
   if (reaction === 'proud') says = 'Great practicing!'
 

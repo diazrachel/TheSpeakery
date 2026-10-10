@@ -1,9 +1,12 @@
 // A React hook that screens use to listen for a word.
 //
-// Demo fallback for the live demo: while the mic is listening,
-// press Y on the keyboard to count it as correct, or N to count it as missed.
+// Demo fallback for the live demo: while the mic is listening, press
+//   Y to count it as correct,
+//   N to count it as missed,
+//   M to count it as a near miss (like hearing "way" for "ray"), to show a tip.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { exampleNearMiss } from '../game/coach.js'
 import { showDebug } from './debug.js'
 import { canRecognizeSpeech, listenForWord } from './recognition.js'
 import { stopSpeaking } from './speak.js'
@@ -12,16 +15,19 @@ import { stopSpeaking } from './speak.js'
 const MESSAGE_STATUSES = ['no-speech', 'mic-blocked', 'no-mic', 'network', 'error']
 
 // status: idle | listening | no-speech | mic-blocked | no-mic | network | error | unsupported
+//
+// listen() resolves to { status, heardOptions }. heardOptions is what the
+// browser thinks it heard, for picking a tip. Don't save or log it.
 export function useWordListener() {
   const [status, setStatus] = useState('idle')
   const activeRef = useRef(null)
 
-  const listen = useCallback(async (word, alsoAccept = []) => {
-    if (activeRef.current) return null // already listening; ignore double taps
+  const listen = useCallback(async (word, { alsoAccept = [], nearMisses = {} } = {}) => {
+    if (activeRef.current) return { status: 'busy', heardOptions: [] } // already listening; ignore double taps
     if (!canRecognizeSpeech) {
       setStatus('unsupported')
       showDebug({ target: word, status: 'unsupported', heard: '', code: 'no SpeechRecognition in this browser' })
-      return 'unsupported'
+      return { status: 'unsupported', heardOptions: [] }
     }
 
     stopSpeaking() // don't let the game hear its own voice
@@ -34,9 +40,10 @@ export function useWordListener() {
     const session = listenForWord(word, { alsoAccept })
     activeRef.current = {
       resolveDemo,
+      demoNearMiss: exampleNearMiss(nearMisses),
       cancel: () => {
         session.cancel()
-        resolveDemo({ status: 'cancelled', heard: '', code: '' })
+        resolveDemo({ status: 'cancelled', heard: '', heardOptions: [], code: '' })
       },
     }
 
@@ -46,17 +53,21 @@ export function useWordListener() {
 
     showDebug({ target: word, ...result })
     setStatus(MESSAGE_STATUSES.includes(result.status) ? result.status : 'idle')
-    return result.status
+    return { status: result.status, heardOptions: result.heardOptions ?? [] }
   }, [])
 
-  // Demo keys: Y = correct, N = missed (only while listening).
+  // Demo keys: Y = correct, N = missed, M = near miss (only while listening).
   useEffect(() => {
     function onKeyDown(event) {
       const active = activeRef.current
       if (!active) return
       const key = event.key.toLowerCase()
-      if (key === 'y') active.resolveDemo({ status: 'correct', heard: '(Y key)', code: 'demo' })
-      if (key === 'n') active.resolveDemo({ status: 'missed', heard: '(N key)', code: 'demo' })
+      if (key === 'y') active.resolveDemo({ status: 'correct', heard: '(Y key)', heardOptions: [], code: 'demo' })
+      if (key === 'n') active.resolveDemo({ status: 'missed', heard: '(N key)', heardOptions: [], code: 'demo' })
+      if (key === 'm') {
+        const heard = active.demoNearMiss
+        active.resolveDemo({ status: 'missed', heard: `(M key) ${heard}`, heardOptions: [heard], code: 'demo' })
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
