@@ -22,6 +22,7 @@ export const LINES = {
   },
   guideRow: (row) => `${row.part}. ${row.text}`,
   listenWords: (sound) => `Listen: ${sound.guide.listenWords}`,
+  mirrorOpen: 'Look in the mirror! Make your mouth look like the picture.',
   practiceCue: (sound) => sound.guide.practice.cue,
   practiceRetry: (sound) => `Hmm? Let's try again. ${sound.guide.practice.cue}`,
   // A tip for a common sound swap we heard (see src/game/coach.js).
@@ -44,7 +45,7 @@ export const LINES = {
 
 // Every line, with no repeats. Used by the voice recording script.
 export function allVoiceLines() {
-  const lines = [LINES.pickQuestion, LINES.micAsk, LINES.helpOffer, LINES.bakeAnyway, LINES.stepCheer, LINES.stepToPractice]
+  const lines = [LINES.pickQuestion, LINES.micAsk, LINES.mirrorOpen, LINES.helpOffer, LINES.bakeAnyway, LINES.stepCheer, LINES.stepToPractice]
   lines.push(LINES.practiceSuccess('intro'), LINES.practiceSuccess('retry'))
 
   for (const id of SOUND_ORDER) {

@@ -74,3 +74,12 @@ export const TurtleIcon = ({ size = 30 }) => (
     <path d="M4.5 19.5l-2.5 1.5" stroke="#6a9a48" strokeWidth="2.2" strokeLinecap="round" />
   </svg>
 )
+
+// A hand mirror.
+export const MirrorIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="9" r="6" />
+    <path d="M12 15v7" />
+    <path d="M9.5 7.5a3 3 0 0 1 2-1.5" />
+  </Icon>
+)
