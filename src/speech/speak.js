@@ -21,6 +21,16 @@ const BROWSER_RATE = { normal: 0.85, slow: 0.4 }
 const LONGEST_LINE_MS = 45000
 // When a line is interrupted, fade it out over about this long instead of a hard cut.
 const FADE_MS = 150
+// Turning the mic on or off makes the computer switch its sound setup for a
+// moment (very noticeable with AirPods). A line that starts during that switch
+// comes out as a glitchy noise. So after the mic stops, wait this long first.
+const MIC_SETTLE_MS = 700
+let quietUntil = 0
+
+// Call this right after the mic stops listening.
+export function letMicSettle() {
+  quietUntil = Date.now() + MIC_SETTLE_MS
+}
 
 const canUseBrowserVoice = typeof window !== 'undefined' && 'speechSynthesis' in window
 
@@ -68,11 +78,14 @@ export function speak(text, { speed = NORMAL } = {}) {
     finishCurrent = finish
 
     recordings.then((lines) => {
-      // Something newer was asked for while we waited. Let that one play.
-      if (thisRequest !== requestId) return finish()
-      const file = lines[text]
-      if (file) playClip(`${VOICE_FOLDER}${file}`, speed, text, finish)
-      else browserSpeak(text, speed, finish)
+      const settleMs = Math.max(0, quietUntil - Date.now())
+      setTimeout(() => {
+        // Something newer was asked for while we waited. Let that one play.
+        if (thisRequest !== requestId) return finish()
+        const file = lines[text]
+        if (file) playClip(`${VOICE_FOLDER}${file}`, speed, text, finish)
+        else browserSpeak(text, speed, finish)
+      }, settleMs)
     })
   })
   return lastDone
