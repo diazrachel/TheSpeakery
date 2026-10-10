@@ -1,0 +1,67 @@
+// Every line the game says out loud, in one place.
+//
+// Screens build their spoken text with these functions, and
+// tools/make-voice.mjs uses allVoiceLines() to record each one as an mp3.
+// If you add or change a line, run `npm run voice` again to record it.
+// (Until then, the game uses the browser's built-in voice for that line.)
+
+import { SOUNDS, SOUND_ORDER, guideAsSpeech } from '../data/sounds.js'
+
+export const LINES = {
+  pickQuestion: 'Which sound are we practicing today?',
+  soundExample: (sound) => `${sound.letter}, like in ${sound.exampleWord}`,
+  micAsk: 'I bake with your voice! Can I use the microphone?',
+  order: (sound) => `New order! ${sound.orderLine}`,
+
+  guideIntro: (sound, mode) => {
+    const opening =
+      mode === 'intro'
+        ? `Before we bake, let's learn ${sound.guide.nickname}!`
+        : `Let's practice ${sound.guide.nickname} together.`
+    return `${opening} ${guideAsSpeech(sound)} Now you try! ${sound.guide.practice.cue}`
+  },
+  guideRow: (row) => `${row.part}. ${row.text}`,
+  listenWords: (sound) => `Listen: ${sound.guide.listenWords}`,
+  practiceCue: (sound) => sound.guide.practice.cue,
+  practiceRetry: (sound) => `Hmm? Let's try again. ${sound.guide.practice.cue}`,
+  practiceSuccess: (mode) => (mode === 'intro' ? "You did it! Let's bake!" : "You did it! Let's get back to baking!"),
+  helpOffer: "That's a tricky one! You're working so hard. Want a grown-up to help?",
+  bakeAnyway: "Great practicing! Let's bake!",
+
+  stepPrompt: (step) => `${step.action}! Say ${step.word}.`,
+  stepCheer: 'Yay! You did it!',
+  stepRetry: (step) => `Hmm? Let's try again. Say ${step.word}.`,
+  stepToPractice: "Hmm? Let's practice the sound together.",
+  // Just the word by itself. The turtle button plays this same clip slowed down.
+  word: (word) => word,
+
+  finishCheer: (sound) => `Amazing! ${sound.finishLine} Tap it to give it to me!`,
+  finishThanks: (sound) => `Yum! Thank you for the ${sound.treat}!`,
+}
+
+// Every line, with no repeats. Used by the voice recording script.
+export function allVoiceLines() {
+  const lines = [LINES.pickQuestion, LINES.micAsk, LINES.helpOffer, LINES.bakeAnyway, LINES.stepCheer, LINES.stepToPractice]
+  lines.push(LINES.practiceSuccess('intro'), LINES.practiceSuccess('retry'))
+
+  for (const id of SOUND_ORDER) {
+    const sound = SOUNDS[id]
+    lines.push(
+      LINES.soundExample(sound),
+      LINES.order(sound),
+      LINES.guideIntro(sound, 'intro'),
+      LINES.guideIntro(sound, 'retry'),
+      LINES.listenWords(sound),
+      LINES.practiceCue(sound),
+      LINES.practiceRetry(sound),
+      LINES.word(sound.guide.practice.say),
+      LINES.finishCheer(sound),
+      LINES.finishThanks(sound),
+    )
+    for (const row of sound.guide.rows) lines.push(LINES.guideRow(row))
+    for (const step of sound.steps) {
+      lines.push(LINES.stepPrompt(step), LINES.stepRetry(step), LINES.word(step.word))
+    }
+  }
+  return [...new Set(lines)]
+}
