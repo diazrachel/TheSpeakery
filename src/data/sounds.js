@@ -18,6 +18,12 @@
 // The browser hears words, not sounds, so this only catches swaps that turn
 // into a different real word. Tips are drafts an SLP should review.
 //
+// A step can also have a Rive animation that plays when the child says the
+// word (like batter pouring in), before the step's picture appears. Add it like:
+//   { word: 'cup', ..., animation: { file: '/assets/animations/cupcake.riv', name: 'pour' } }
+// `name` is the timeline animation's name in Rive. Add `artboard: '...'` if the
+// file has more than one artboard. Steps without `animation` just pop in.
+//
 // Each treat has a starting picture and one picture per step. A step's `image`
 // is what the treat looks like after the child says that step's word.
 // The current pictures are SVG stand-ins made by tools/make_treats.py.

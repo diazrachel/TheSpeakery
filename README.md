@@ -93,3 +93,28 @@ in `src/data/sounds.js`, run `npm run voice` again to record it.
 
 Open http://localhost:5173/?debug to see what the browser heard on each try,
 and why a try failed. Nothing is saved; it only shows the latest try.
+
+## Adding treat animations (Rive)
+
+Each baking step can play a Rive animation when the child says the word, like
+batter pouring into the liner. Then the step's picture appears.
+
+1. In Rive, make one **timeline animation** per step (not a looping one). Give
+   the artboard a **transparent background**, and match the size and position
+   of the treat sprites, so the first frame looks like the "before" sprite and
+   the last frame like the "after" sprite.
+2. Export the `.riv` file into `public/assets/animations/` (for example `cupcake.riv`).
+3. In `src/data/sounds.js`, add `animation` to that step:
+   `animation: { file: '/assets/animations/cupcake.riv', name: 'pour' }`
+   (`name` is the animation's name in Rive. Add `artboard: '...'` if there's more than one.)
+
+If a file is missing or broken, the game skips the animation and shows the sprite.
+
+## Grown-up corner
+
+On the start screen, tap **Grown-ups** (top-right corner) and answer the math
+question. It shows practice time and how each sound is going, lets a grown-up
+choose which sounds to practice, and links to trusted resources. Everything is
+saved on the device only. For a demo, open the game with `?debug` and use the
+shelf buttons to unlock "Feed the dragon" quickly.
+

@@ -132,6 +132,7 @@ function stopAudio() {
     fadeOut(currentClip)
     currentClip = null
   }
+  if (currentUtterance) currentUtterance.onend = null
   if (canUseBrowserVoice) window.speechSynthesis.cancel()
   currentUtterance = null
 }

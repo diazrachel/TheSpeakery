@@ -8,9 +8,9 @@ import { shelfIsFull } from '../game/shelf.js'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
 
-export function ShelfScreen({ shelf, onBake, onFeed, onBack }) {
+export function ShelfScreen({ shelf, soundIds, onBake, onFeed, onBack }) {
   const empty = Object.values(shelf).every((count) => count === 0)
-  const full = shelfIsFull(shelf)
+  const full = shelfIsFull(shelf, soundIds)
   const line = empty ? LINES.shelfEmpty : LINES.shelfOpen
 
   useEffect(() => {

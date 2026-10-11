@@ -1,7 +1,11 @@
-import { ArrowIcon, ShelfIcon } from '../components/icons.jsx'
+import { useState } from 'react'
+import { GrownUpGate } from '../components/GrownUpGate.jsx'
+import { ArrowIcon, LockIcon, ShelfIcon } from '../components/icons.jsx'
 import { Button, Scene } from '../components/ui.jsx'
 
-export function StartScreen({ onStart, onOpenShelf }) {
+export function StartScreen({ onStart, onOpenShelf, onOpenGrownUps }) {
+  const [gateOpen, setGateOpen] = useState(false)
+
   return (
     <Scene mood="idle" dragonPlace="center">
       <header className="hero">
@@ -16,6 +20,19 @@ export function StartScreen({ onStart, onOpenShelf }) {
           <ShelfIcon /> My treats
         </Button>
       </div>
+
+      {/* Tucked in the corner on purpose: it's for grown-ups. */}
+      <button type="button" className="corner-grownups" onClick={() => setGateOpen(true)}>
+        <LockIcon size={16} /> Grown-ups
+      </button>
+      <GrownUpGate
+        open={gateOpen}
+        onPass={() => {
+          setGateOpen(false)
+          onOpenGrownUps()
+        }}
+        onCancel={() => setGateOpen(false)}
+      />
     </Scene>
   )
 }

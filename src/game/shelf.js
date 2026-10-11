@@ -48,6 +48,7 @@ export function setShelf(shelf) {
 }
 
 // True once the child has baked every kind of treat at least once.
-export function shelfIsFull(shelf) {
-  return SOUND_ORDER.every((id) => shelf[id] > 0)
+// soundIds: the sounds a grown-up turned on (all three by default).
+export function shelfIsFull(shelf, soundIds = SOUND_ORDER) {
+  return soundIds.every((id) => shelf[id] > 0)
 }

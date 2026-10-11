@@ -21,9 +21,10 @@ function shuffle(list) {
 }
 
 // Picks words from all three sounds, taking turns so they're mixed.
-export function newFeedRound(size = TREATS_PER_ROUND) {
-  const bySound = SOUND_ORDER.map((id) => shuffle(SOUNDS[id].steps.map((_, stepIndex) => ({ soundId: id, stepIndex }))))
-  const order = shuffle(SOUND_ORDER.map((_, i) => i))
+// soundIds: the sounds a grown-up turned on (all three by default).
+export function newFeedRound(size = TREATS_PER_ROUND, soundIds = SOUND_ORDER) {
+  const bySound = soundIds.map((id) => shuffle(SOUNDS[id].steps.map((_, stepIndex) => ({ soundId: id, stepIndex }))))
+  const order = shuffle(soundIds.map((_, i) => i))
   const queue = []
   for (let turn = 0; queue.length < size && turn < 50; turn++) {
     const list = bySound[order[turn % order.length]]

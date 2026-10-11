@@ -10,6 +10,7 @@ import { Art, Button, Headline, MarkedWord, Scene, SlowSpeakButton } from '../co
 import { SOUNDS } from '../data/sounds.js'
 import { findNearMiss } from '../game/coach.js'
 import { currentTreat, feedCorrect, feedMissed, newFeedRound, roundIsOver } from '../game/feedRound.js'
+import { recordTry } from '../game/progress.js'
 import { makeWordCheck } from '../game/wordCheck.js'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
@@ -21,8 +22,9 @@ import './FeedScreen.css'
 const EAT_MS = 650
 const FLOAT_AWAY_MS = 600
 
-export function FeedScreen({ onHome }) {
-  const [round, setRound] = useState(newFeedRound)
+// soundIds: the sounds a grown-up turned on.
+export function FeedScreen({ soundIds, onHome }) {
+  const [round, setRound] = useState(() => newFeedRound(undefined, soundIds))
   // motion: 'float' | 'eaten' | 'away'
   const [motion, setMotion] = useState('float')
   // reaction: null | 'yum' | 'confused'
@@ -74,6 +76,10 @@ export function FeedScreen({ onHome }) {
 
   async function handleMic() {
     const { status: result, heardOptions } = await listen(isCorrect)
+    if (result === 'correct' || result === 'missed') {
+      const nearMiss = result === 'missed' ? findNearMiss(heardOptions, step.nearMisses) : null
+      recordTry({ soundId: sound.id, word: step.word, correct: result === 'correct', swap: nearMiss?.swap })
+    }
     if (result === 'correct') {
       aimAtMouth()
       setTip(null)
@@ -110,7 +116,7 @@ export function FeedScreen({ onHome }) {
   function playAgain() {
     greeted.current = true
     lastAnnounced.current = null
-    setRound(newFeedRound())
+    setRound(newFeedRound(undefined, soundIds))
     setMotion('float')
     setReaction(null)
     setTip(null)

@@ -12,6 +12,7 @@ import { GrownUpHelp } from '../components/GrownUpHelp.jsx'
 import { MicButton } from '../components/MicButton.jsx'
 import { SoundGuide } from '../components/SoundGuide.jsx'
 import { findNearMiss } from '../game/coach.js'
+import { recordTry } from '../game/progress.js'
 import { makeWordCheck } from '../game/wordCheck.js'
 import { Button, Headline, MarkedWord, Scene, SlowSpeakButton, SpeakButton } from '../components/ui.jsx'
 import { LINES } from '../speech/lines.js'
@@ -43,6 +44,11 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
 
   async function handleMic() {
     const { status: result, heardOptions } = await listen(isCorrect)
+    // Counts for the grown-up corner (on this device only, no voice saved).
+    if (result === 'correct' || result === 'missed') {
+      const swap = result === 'missed' ? findNearMiss(heardOptions, practice.nearMisses)?.swap : null
+      recordTry({ soundId: sound.id, word: practice.say, correct: result === 'correct', swap })
+    }
     if (result === 'correct') {
       setReaction('cheer')
       afterSpeech(speak(LINES.practiceSuccess(mode)), REACTION_MS, onDone)

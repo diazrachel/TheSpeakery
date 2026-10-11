@@ -11,7 +11,7 @@ import { shelfIsFull } from '../game/shelf.js'
 // Two moments on one screen: celebrate the treat, then give it to the dragon.
 // After giving it, the treat goes on the child's shelf.
 // justFilled: this treat was the last one missing from the shelf.
-export function FinishScreen({ sound, treatGiven, shelf, justFilled, onGive, onPlayAgain, onFeed }) {
+export function FinishScreen({ sound, treatGiven, shelf, soundIds, justFilled, onGive, onPlayAgain, onFeed }) {
   const finalImage = sound.steps[sound.steps.length - 1].image
   const cheer = LINES.finishCheer(sound)
   const thanks = LINES.finishThanks(sound)
@@ -55,7 +55,7 @@ export function FinishScreen({ sound, treatGiven, shelf, justFilled, onGive, onP
             <Button onClick={onPlayAgain}>
               <AgainIcon /> Bake another treat
             </Button>
-            {shelfIsFull(shelf) && (
+            {shelfIsFull(shelf, soundIds) && (
               <Button variant="strong" onClick={onFeed}>
                 Feed the dragon
               </Button>

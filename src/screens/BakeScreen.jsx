@@ -1,17 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { MicButton } from '../components/MicButton.jsx'
 import { Art, Button, Headline, MarkedWord, Scene, SlowSpeakButton } from '../components/ui.jsx'
 import { findNearMiss } from '../game/coach.js'
 import { MISSES_BEFORE_PRACTICE } from '../game/gameReducer.js'
+import { recordTry } from '../game/progress.js'
 import { makeWordCheck } from '../game/wordCheck.js'
 import { LINES } from '../speech/lines.js'
 import { speak } from '../speech/speak.js'
 import { useAfterSpeech } from '../speech/useAfterSpeech.js'
 import { LISTEN_MESSAGES, useWordListener } from '../speech/useWordListener.js'
 
+// The animation player is big, so it only loads when a step has an animation.
+const TreatAnimation = lazy(() => import('../components/TreatAnimation.jsx').then((m) => ({ default: m.TreatAnimation })))
+
 // The shortest time the dragon reacts before the game moves on.
 // (It also waits for the dragon to finish talking.)
 const REACTION_MS = 1500
+// The longest we wait for a step's animation before moving on anyway.
+const ANIMATION_TIMEOUT_MS = 7000
 
 export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   const step = sound.steps[stepIndex]
@@ -26,6 +32,9 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   const [misses, setMisses] = useState(0)
   // The near-miss word we heard on the last try (like "way"), shown in the bubble.
   const [heardNearMiss, setHeardNearMiss] = useState(null)
+  // True while this step's Rive animation plays (only for steps that have one).
+  const [animating, setAnimating] = useState(false)
+  const animationFinished = useRef(null)
 
   // Read the prompt out loud. (App gives each step a fresh screen, so this
   // runs once per step.)
@@ -35,9 +44,25 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
 
   async function handleMic() {
     const { status: result, heardOptions } = await listen(isCorrect)
+    // Counts for the grown-up corner (on this device only, no voice saved).
+    if (result === 'correct' || result === 'missed') {
+      const swap = result === 'missed' ? findNearMiss(heardOptions, step.nearMisses)?.swap : null
+      recordTry({ soundId: sound.id, word: step.word, correct: result === 'correct', swap })
+    }
     if (result === 'correct') {
       setReaction('cheer')
-      afterSpeech(speak(LINES.stepCheer), REACTION_MS, onCorrect)
+      // Move on once the dragon is done cheering and the animation (if any) is done.
+      // (Never wait more than a few seconds, in case the animation can't load.)
+      const animationDone = step.animation
+        ? Promise.race([
+            new Promise((resolve) => {
+              animationFinished.current = resolve
+            }),
+            new Promise((resolve) => setTimeout(resolve, ANIMATION_TIMEOUT_MS)),
+          ])
+        : null
+      if (step.animation) setAnimating(true)
+      afterSpeech(Promise.all([speak(LINES.stepCheer), animationDone]), REACTION_MS, onCorrect)
     } else if (result === 'missed') {
       const missesNow = misses + 1
       const nearMiss = findNearMiss(heardOptions, step.nearMisses)
@@ -58,7 +83,13 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
 
   const listening = status === 'listening'
   const message = LISTEN_MESSAGES[status]
-  const treatNow = reaction === 'cheer' ? step.image : treatBefore
+  // While the animation plays, the "before" picture stays underneath it.
+  const treatNow = reaction === 'cheer' && !animating ? step.image : treatBefore
+
+  function handleAnimationDone() {
+    setAnimating(false)
+    animationFinished.current?.()
+  }
   const mood = reaction ?? (listening ? 'listening' : 'idle')
   let confusedLine = misses >= MISSES_BEFORE_PRACTICE ? 'Hmm? Let’s practice!' : 'Hmm? Try again!'
   if (heardNearMiss && misses < MISSES_BEFORE_PRACTICE) confusedLine = `Hmm? I heard “${heardNearMiss}”!`
@@ -89,8 +120,18 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
         <Art src={sound.icon} alt="" />
       </div>
 
-      <div className={`on-counter ${reaction === 'cheer' ? 'on-counter--pop' : ''}`}>
-        <Art key={treatNow} src={treatNow} alt={`${sound.treat} in progress`} className="treat__img" />
+      <div className={`on-counter ${reaction === 'cheer' && !step.animation ? 'on-counter--pop' : ''}`}>
+        <Art
+          key={treatNow}
+          src={treatNow}
+          alt={`${sound.treat} in progress`}
+          className={`treat__img ${animating ? 'treat__img--under-animation' : ''}`}
+        />
+        {step.animation && (
+          <Suspense fallback={null}>
+            <TreatAnimation animation={step.animation} playing={animating} onDone={handleAnimationDone} />
+          </Suspense>
+        )}
       </div>
 
       <div className="counter-front">

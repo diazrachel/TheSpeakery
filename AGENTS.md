@@ -133,6 +133,17 @@ Finish the main flow first, then the practice book, then the parent section.
   friendly and plain. Encourage parents to work with a speech-language
   pathologist, and don't make medical claims.
 - Kid-facing screens should never show parent settings or parent text.
+- What's built: the "Grown-ups" button tucked in the start screen's top-right
+  corner opens a math check (`src/components/GrownUpGate.jsx`), then the
+  grown-up corner (`src/screens/GrownUpScreen.jsx`). It shows practice time per
+  sound, words said right, extra tries, the trickiest word, the most common
+  mix-up, and which sound needed the most practice, plus the "sounds to
+  practice" setting and checked ASHA/NIDCD links. Parent text lives in
+  `src/data/grownUps.js`.
+- Progress (`src/game/progress.js`), settings (`src/game/settings.js`), and the
+  treat shelf (`src/game/shelf.js`) are saved in the browser on this device
+  only. They hold counts and the kind of mix-up (like "R sounded like W"), never
+  audio, transcripts, or names.
 
 ### Look and feel
 
@@ -149,6 +160,9 @@ Finish the main flow first, then the practice book, then the parent section.
   in `src/components/Dragon.jsx`, matching the original face's style, so they
   can change with each mood. When reacting to a missed word, the dragon looks
   curious or puzzled, never sad.
+- Treat animations are Rive files in `public/assets/animations/`, played by
+  `src/components/TreatAnimation.jsx` when a step has `animation` in
+  `src/data/sounds.js`. See README.md, "Adding treat animations".
 - Use the mockups as a guide, but follow this file when they disagree.
 
 ## Tech Stack and Commands

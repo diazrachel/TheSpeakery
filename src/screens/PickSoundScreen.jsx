@@ -6,7 +6,8 @@ import { speak } from '../speech/speak.js'
 
 const QUESTION = LINES.pickQuestion
 
-export function PickSoundScreen({ soundId, onPick, onConfirm }) {
+// soundIds: the sounds a grown-up turned on (all three by default).
+export function PickSoundScreen({ soundId, soundIds = SOUND_ORDER, onPick, onConfirm }) {
   function pick(sound) {
     onPick(sound.id)
     speak(LINES.soundExample(sound))
@@ -18,7 +19,7 @@ export function PickSoundScreen({ soundId, onPick, onConfirm }) {
 
       <div className="center-zone">
         <div className="sound-cards" role="radiogroup" aria-label="Practice sound">
-          {SOUND_ORDER.map((id) => {
+          {soundIds.map((id) => {
             const sound = SOUNDS[id]
             const selected = id === soundId
             return (

@@ -5,7 +5,7 @@
 import { SOUNDS } from '../data/sounds.js'
 
 export const initialGameState = {
-  screen: 'start', // start | shelf | feed | pickSound | micCheck | order | guide | bake | practice | finish
+  screen: 'start', // start | grownups | shelf | feed | pickSound | micCheck | order | guide | bake | practice | finish
   soundId: 'S',
   stepIndex: 0,
   missesOnStep: 0,
@@ -21,6 +21,10 @@ export function gameReducer(state, action) {
     // The treat shelf, opened from the start screen.
     case 'OPEN_SHELF':
       return { ...state, screen: 'shelf' }
+
+    // The grown-up corner (after the grown-ups-only check).
+    case 'OPEN_GROWNUPS':
+      return { ...state, screen: 'grownups' }
 
     // "Feed the dragon", unlocked by a full shelf.
     case 'OPEN_FEED':

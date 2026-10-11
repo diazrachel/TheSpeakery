@@ -92,3 +92,11 @@ export const ShelfIcon = (props) => (
     <path d="M12 3v2" />
   </Icon>
 )
+
+// A small padlock, for the grown-ups-only button.
+export const LockIcon = (props) => (
+  <Icon {...props}>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+  </Icon>
+)

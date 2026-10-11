@@ -6,8 +6,11 @@ import { TopBar } from './components/TopBar.jsx'
 import { SOUNDS } from './data/sounds.js'
 import { gameReducer, initialGameState } from './game/gameReducer.js'
 import { addToShelf, loadShelf, shelfIsFull } from './game/shelf.js'
+import { loadSettings, toggleSound } from './game/settings.js'
+import { usePracticeTimer } from './game/usePracticeTimer.js'
 import { BakeScreen } from './screens/BakeScreen.jsx'
 import { FeedScreen } from './screens/FeedScreen.jsx'
+import { GrownUpScreen } from './screens/GrownUpScreen.jsx'
 import { FinishScreen } from './screens/FinishScreen.jsx'
 import { MicCheckScreen } from './screens/MicCheckScreen.jsx'
 import { OrderScreen } from './screens/OrderScreen.jsx'
@@ -17,6 +20,9 @@ import { SoundPracticeScreen } from './screens/SoundPracticeScreen.jsx'
 import { StartScreen } from './screens/StartScreen.jsx'
 import { stopSpeaking } from './speech/speak.js'
 
+// Screens that count as practicing the chosen sound (for the grown-up corner).
+const LESSON_SCREENS = ['order', 'guide', 'bake', 'practice', 'finish']
+
 export default function App() {
   const [game, dispatch] = useReducer(gameReducer, initialGameState)
   const sound = SOUNDS[game.soundId]
@@ -24,10 +30,22 @@ export default function App() {
   // The treat shelf is saved on this device (see game/shelf.js).
   const [shelf, setShelf] = useState(loadShelf)
   const [justFilled, setJustFilled] = useState(false)
+  // Grown-up settings, like which sounds to practice (see game/settings.js).
+  const [settings, setSettings] = useState(loadSettings)
+  const soundIds = settings.sounds
+
+  // Count practice time for the grown-up corner.
+  usePracticeTimer(LESSON_SCREENS.includes(game.screen) ? game.soundId : game.screen === 'feed' ? 'feed' : null)
+
+  function startGame() {
+    // If a grown-up turned off the last-picked sound, start on one that's on.
+    if (!soundIds.includes(game.soundId)) dispatch({ type: 'PICK_SOUND', soundId: soundIds[0] })
+    dispatch({ type: 'START' })
+  }
 
   function giveTreat() {
     const next = addToShelf(shelf, game.soundId)
-    setJustFilled(!shelfIsFull(shelf) && shelfIsFull(next))
+    setJustFilled(!shelfIsFull(shelf, soundIds) && shelfIsFull(next, soundIds))
     setShelf(next)
     dispatch({ type: 'GIVE_TREAT' })
   }
@@ -40,29 +58,43 @@ export default function App() {
   return (
     <div className="app">
       <TopBar
-        onHome={game.screen === 'start' ? null : goHome}
+        onHome={game.screen === 'start' || game.screen === 'grownups' ? null : goHome}
         totalSteps={inKitchen ? sound.steps.length : 0}
         doneSteps={game.stepIndex}
       />
 
       {game.screen === 'start' && (
-        <StartScreen onStart={() => dispatch({ type: 'START' })} onOpenShelf={() => dispatch({ type: 'OPEN_SHELF' })} />
+        <StartScreen
+          onStart={startGame}
+          onOpenShelf={() => dispatch({ type: 'OPEN_SHELF' })}
+          onOpenGrownUps={() => dispatch({ type: 'OPEN_GROWNUPS' })}
+        />
+      )}
+
+      {game.screen === 'grownups' && (
+        <GrownUpScreen
+          settings={settings}
+          onToggleSound={(id) => setSettings((s) => toggleSound(s, id))}
+          onClose={goHome}
+        />
       )}
 
       {game.screen === 'shelf' && (
         <ShelfScreen
           shelf={shelf}
-          onBake={() => dispatch({ type: 'START' })}
+          soundIds={soundIds}
+          onBake={startGame}
           onFeed={() => dispatch({ type: 'OPEN_FEED' })}
           onBack={goHome}
         />
       )}
 
-      {game.screen === 'feed' && <FeedScreen onHome={goHome} />}
+      {game.screen === 'feed' && <FeedScreen soundIds={soundIds} onHome={goHome} />}
 
       {game.screen === 'pickSound' && (
         <PickSoundScreen
           soundId={game.soundId}
+          soundIds={soundIds}
           onPick={(soundId) => dispatch({ type: 'PICK_SOUND', soundId })}
           onConfirm={() => dispatch({ type: 'CONFIRM_SOUND' })}
         />
@@ -96,6 +128,7 @@ export default function App() {
           sound={sound}
           treatGiven={game.treatGiven}
           shelf={shelf}
+          soundIds={soundIds}
           justFilled={justFilled}
           onGive={giveTreat}
           onFeed={() => dispatch({ type: 'OPEN_FEED' })}
