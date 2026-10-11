@@ -127,3 +127,12 @@ dip around 0.5 to 0.75; a W-like R is around 0.85 or higher. If clear R's get
 flagged as W, raise `W_MIN` in `src/speech/rSoundCheck.js` (for
 example to 0.9). If W's slip through, lower `W_MIN` (for example to 0.83).
 
+## Treat pictures
+
+The cinnamon roll and cupcake use the team's sprites (PNG files in
+`art/treat-sprites/`, named `treat-roll-1.png` to `treat-roll-5.png` and
+`treat-cupcake-1.png` to `treat-cupcake-5.png`). To update one, replace the PNG
+and run `python3 tools/place_sprites.py`. It centers each sprite on its plate or
+board and rebuilds the pictures in `public/assets/treats/`. The s'more is drawn
+by `tools/make_treats.py`.
+
