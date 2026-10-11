@@ -122,10 +122,11 @@ shelf buttons to unlock "Feed the dragon" quickly.
 
 R words also check whether the R sounded like a W (the browser alone can't
 tell "bwown" from "brown"). Open the game with `?debug` and say an R word: the
-debug box shows `R check: r / w / unsure (dip 0.xx)`. A real R usually has a
-dip around 0.5 to 0.75; a W-like R is around 0.85 or higher. If clear R's get
-flagged as W, raise `W_MIN` in `src/speech/rSoundCheck.js` (for
-example to 0.9). If W's slip through, lower `W_MIN` (for example to 0.83).
+debug box shows `R check: r / w / unsure (score 0.xx)`. The score runs from 0
+(sounds like a W) to 1 (sounds like an R). At or below `W_MAX` (0.2) the try
+counts as a W-for-R swap; in between, the game trusts the browser. If clear R's
+get flagged as W, lower `W_MAX` in `src/speech/rSoundCheck.js` (for example to
+0.1). If W's slip through, raise it (for example to 0.3).
 
 ## Treat pictures
 

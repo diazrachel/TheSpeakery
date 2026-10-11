@@ -81,10 +81,11 @@ Finish the main flow first, then the practice book, then the parent section.
   continue) so the live demo still works if recognition fails.
 - R words get a second check of HOW the R sounded (`src/speech/rSoundCheck.js`):
   the browser "fixes" bwown into brown, so we measure the sound itself. A real
-  R makes the third formant (F3) dip at the start of the word; a W doesn't.
+  R adds sound energy around 1,300 to 2,000 Hz at the start of the word; a W
+  doesn't. It gives a score from 0 (W) to 1 (R).
   The audio for that check is kept in memory for one try only
   (`src/speech/micRecorder.js`) and never saved, uploaded, or logged. Tune
-  `R_MAX` and `W_MIN` with `?debug`, which shows the dip number for each try.
+  `W_MAX` with `?debug`, which shows the score for each try.
   When unsure, it trusts the browser. Turn it off with `CHECK_R_SOUND` in
   `src/game/wordCheck.js`.
 - Holding a sound ("ssssss") and saying a word ("sauce") are different checks.

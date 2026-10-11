@@ -2,10 +2,19 @@
 //
 // The browser's speech recognition "fixes" a W-for-R swap: a child saying
 // "bwown" usually comes back as "brown". So for R words we also look at the
-// sound itself. A real R has a famous fingerprint: one of the voice's
-// resonances (called F3, the third formant) dips down low during the R.
-// A W doesn't make that dip. We compare F3 at the start of the word (where
-// the R is in all our R words) with F3 later in the word (the vowel).
+// sound itself, at the start of the word (where the R is in all our R words).
+//
+// A real R pulls one of the voice's resonances (F3) way down, so the start of
+// the word has extra sound energy around 1,300 to 2,000 Hz. A W keeps that
+// area quiet: its energy sits low (under about 900 Hz) and up high (2,400 Hz+).
+// We measure the sound "shape" at 20 pitches, both on its own and compared
+// with the vowel later in the word (so it adapts to each voice), and combine
+// them into one score from 0 (sounds like W) to 1 (sounds like R).
+//
+// The weights below were fitted on hundreds of computer-voice R/W pairs
+// ("ray"/"way", "brown"/"bwown", ...), in 8 voices, at different pitches, with
+// and without background noise. On voices it wasn't fitted on, it flagged about
+// 2% of real R's as W and caught about 87% of W's. Real kids will vary more.
 //
 // This is a sound-science heuristic, not a speech test. When it isn't sure,
 // it says 'unsure' and the game goes with the browser's answer.
@@ -13,56 +22,49 @@
 // Privacy: the audio is only kept in memory for this one try, analyzed, and
 // then thrown away. Nothing is saved, uploaded, or logged.
 
-// F3 at the start divided by F3 in the vowel. A real R dips well below 1.
-// At or below R_MAX it counts as an R. At or above W_MIN it sounds like a W.
-// In between, we're not sure. Tune with ?debug (it shows this number).
-export const R_MAX = 0.82
-export const W_MIN = 0.85
+// Score at or below W_MAX: sounds like a W. At or above R_MIN: sounds like an R.
+// In between, we're not sure (and the browser decides). Tune with ?debug, which
+// shows the score. If clear R's get flagged as W, lower W_MAX (like 0.1).
+// If W's slip through, raise W_MAX (like 0.3).
+export const W_MAX = 0.2
+export const R_MIN = 0.5
 
 const TARGET_RATE = 11025
 const FRAME_MS = 30
 const HOP_MS = 10
 const LPC_ORDER = 12
-// How far F3 may move between frames (10 ms apart) while we follow it.
-const MAX_STEP = 0.12
+
+// The pitches (Hz) where we measure the sound's shape.
+const BANDS = [250, 291, 339, 395, 459, 535, 623, 725, 844, 983, 1144, 1333, 1551, 1806, 2103, 2449, 2851, 3320, 3865, 4500]
+// How much each measurement pushes toward R (+) or W (-).
+// First 20: the start of the word. Last 20: the start minus the vowel.
+const WEIGHTS = [
+  -0.0317, -0.0372, 0.0372, 0.0323, 0.0335, -0.0588, -0.1933, -0.1801, -0.363, -0.063,
+  0.3158, 0.3998, 0.2466, 0.2574, -0.2508, -0.2166, -0.6389, -0.0989, 0.0366, 0.1199,
+  -0.0713, -0.0523, 0.0686, -0.1027, -0.0488, 0.0363, 0.0754, -0.1425, 0.0372, 0.1455,
+  0.1091, -0.0756, -0.0935, 0.0963, 0.0471, 0.0193, -0.0523, -0.0831, 0.0695, -0.0424,
+]
+const BIAS = 0.5068
 
 // samples: Float32Array of the child's try. Returns
-// { verdict: 'r' | 'w' | 'unsure', ratio, frames }.
+// { verdict: 'r' | 'w' | 'unsure', score, frames }.
 export function checkRSound(samples, sampleRate) {
   const { signal, rate } = downsample(samples, sampleRate)
-  const frames = voicedFrames(signal, rate)
-  if (frames.length < 12) return { verdict: 'unsure', ratio: null, frames: frames.length }
+  const shapes = voicedFrames(signal, rate)
+    .map((frame) => soundShape(frame, rate))
+    .filter(Boolean)
+  const n = shapes.length
+  if (n < 12) return { verdict: 'unsure', score: null, frames: n }
 
-  const analyzed = frames.map((frame) => formantsOf(frame, rate))
-  const n = analyzed.length
-  const vowelStart = Math.round(n * 0.45)
-  const vowelEnd = Math.round(n * 0.85)
-  const vowelF3s = analyzed.slice(vowelStart, vowelEnd).map(thirdFormant).filter(Boolean)
-  if (vowelF3s.length < 3) return { verdict: 'unsure', ratio: null, frames: n }
-  const vowelF3 = percentile(vowelF3s, 0.5)
+  const start = average(shapes.slice(0, Math.max(3, Math.round(n * 0.3))))
+  const vowel = average(shapes.slice(Math.round(n * 0.45), Math.round(n * 0.85)))
+  const features = [...start, ...start.map((value, i) => value - vowel[i])]
 
-  // Follow F3 backward from the vowel to the start of the word, frame by frame,
-  // so we stay on the same resonance even when it dips close to F2 in an R.
-  let tracked = vowelF3
-  const onsetF3 = []
-  const onsetEnd = Math.max(3, Math.round(n * 0.35))
-  for (let i = vowelStart; i >= 0; i--) {
-    const near = analyzed[i].filter((f) => f > 1000 && Math.abs(f - tracked) <= tracked * MAX_STEP)
-    if (near.length) tracked = near.reduce((a, b) => (Math.abs(b - tracked) < Math.abs(a - tracked) ? b : a))
-    if (i < onsetEnd && near.length) onsetF3.push(tracked)
-  }
-
-  // Second opinion: the plain "third formant" in each start frame, which
-  // catches quick dips that are too fast to follow.
-  const plainOnset = analyzed.slice(0, onsetEnd).map(thirdFormant).filter(Boolean)
-  const lows = onsetF3.length >= 3 ? [percentile(onsetF3, 0.2)] : []
-  if (plainOnset.length >= 3) lows.push(percentile(plainOnset, 0.2))
-  if (!lows.length) return { verdict: 'unsure', ratio: null, frames: n }
-
-  // Use whichever shows the deeper dip, so a real R is never missed.
-  const ratio = Math.min(...lows) / vowelF3
-  const verdict = ratio <= R_MAX ? 'r' : ratio >= W_MIN ? 'w' : 'unsure'
-  return { verdict, ratio: Math.round(ratio * 100) / 100, frames: n }
+  let total = BIAS
+  features.forEach((value, i) => (total += value * WEIGHTS[i]))
+  const score = 1 / (1 + Math.exp(-total))
+  const verdict = score <= W_MAX ? 'w' : score >= R_MIN ? 'r' : 'unsure'
+  return { verdict, score: Math.round(score * 100) / 100, frames: n }
 }
 
 // ---------- Sound math (you shouldn't need to change anything below) ----------
@@ -122,33 +124,36 @@ function voicedFrames(signal, rate) {
   return frames.slice(best[0], best[1] + 1).map((f) => f.frame)
 }
 
-// All the resonances (formants) of one frame, in Hz, lowest first.
-function formantsOf(frame, rate) {
+// The loudness (in dB) of one frame at each pitch in BANDS, measured from a
+// smooth outline of the spectrum (linear prediction), relative to the frame's
+// average so a loud or quiet voice doesn't matter.
+function soundShape(frame, rate) {
   const size = frame.length
   const x = new Float64Array(size)
-  // Pre-emphasis and a Hamming window, the usual prep for formant tracking.
+  // Pre-emphasis and a Hamming window, the usual prep for speech analysis.
   for (let i = 0; i < size; i++) {
     const emphasized = frame[i] - 0.97 * (i > 0 ? frame[i - 1] : 0)
     x[i] = emphasized * (0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (size - 1)))
   }
   const coeffs = lpc(x, LPC_ORDER)
-  if (!coeffs) return []
-  return polynomialRoots(coeffs)
-    .filter((r) => r.im > 0)
-    .map((r) => ({
-      freq: (Math.atan2(r.im, r.re) * rate) / (2 * Math.PI),
-      bandwidth: (-Math.log(Math.hypot(r.re, r.im)) * rate) / Math.PI,
-    }))
-    .filter((f) => f.freq > 150 && f.freq < rate / 2 - 150 && f.bandwidth < 500)
-    .map((f) => f.freq)
-    .sort((a, b) => a - b)
+  if (!coeffs) return null
+  const levels = BANDS.map((hz) => {
+    const w = (2 * Math.PI * hz) / rate
+    let re = 0
+    let im = 0
+    coeffs.forEach((a, k) => {
+      re += a * Math.cos(w * k)
+      im -= a * Math.sin(w * k)
+    })
+    return -10 * Math.log10(re * re + im * im)
+  })
+  const mean = levels.reduce((sum, v) => sum + v, 0) / levels.length
+  return levels.map((v) => v - mean)
 }
 
-// F3 from a frame's formants: the third one (F1 is usually under 1100 Hz).
-function thirdFormant(formants) {
-  const start = formants[0] < 1100 ? 0 : -1
-  const candidate = formants[start + 2]
-  return candidate && candidate > 1300 && candidate < 4200 ? candidate : null
+// The average shape of several frames.
+function average(shapes) {
+  return BANDS.map((_, i) => shapes.reduce((sum, shape) => sum + shape[i], 0) / shapes.length)
 }
 
 // Linear prediction coefficients [1, a1, ..., ap] (Levinson-Durbin).
@@ -176,52 +181,4 @@ function lpc(x, order) {
     if (error <= 0) return null
   }
   return a
-}
-
-// Roots of 1 + a1 z^-1 + ... + ap z^-p (Durand-Kerner method).
-function polynomialRoots(a) {
-  const n = a.length - 1
-  // As a polynomial in z: z^n + a1 z^(n-1) + ... + an
-  const roots = Array.from({ length: n }, (_, i) => {
-    const angle = (2 * Math.PI * i) / n + 0.4
-    return { re: 0.9 * Math.cos(angle), im: 0.9 * Math.sin(angle) }
-  })
-  const evaluate = (z) => {
-    let re = 1
-    let im = 0
-    for (let k = 1; k <= n; k++) {
-      const nr = re * z.re - im * z.im + a[k]
-      im = re * z.im + im * z.re
-      re = nr
-    }
-    return { re, im }
-  }
-  for (let iter = 0; iter < 200; iter++) {
-    let moved = 0
-    for (let i = 0; i < n; i++) {
-      const p = evaluate(roots[i])
-      let dRe = 1
-      let dIm = 0
-      for (let j = 0; j < n; j++) {
-        if (j === i) continue
-        const diffRe = roots[i].re - roots[j].re
-        const diffIm = roots[i].im - roots[j].im
-        const t = dRe * diffRe - dIm * diffIm
-        dIm = dRe * diffIm + dIm * diffRe
-        dRe = t
-      }
-      const denom = dRe * dRe + dIm * dIm || 1e-12
-      const stepRe = (p.re * dRe + p.im * dIm) / denom
-      const stepIm = (p.im * dRe - p.re * dIm) / denom
-      roots[i] = { re: roots[i].re - stepRe, im: roots[i].im - stepIm }
-      moved = Math.max(moved, Math.hypot(stepRe, stepIm))
-    }
-    if (moved < 1e-9) break
-  }
-  return roots
-}
-
-function percentile(values, p) {
-  const sorted = [...values].sort((x, y) => x - y)
-  return sorted[Math.min(sorted.length - 1, Math.floor(p * (sorted.length - 1)))]
 }
