@@ -8,7 +8,7 @@ import { Sparkles } from '../components/Sparkles.jsx'
 import { AgainIcon } from '../components/icons.jsx'
 import { Art, Button, Headline, MarkedWord, Scene, SlowSpeakButton } from '../components/ui.jsx'
 import { SOUNDS } from '../data/sounds.js'
-import { findNearMiss } from '../game/coach.js'
+import { nearMissBubble, nearMissFrom } from '../game/coach.js'
 import { currentTreat, feedCorrect, feedMissed, newFeedRound, roundIsOver } from '../game/feedRound.js'
 import { recordTry } from '../game/progress.js'
 import { makeWordCheck } from '../game/wordCheck.js'
@@ -75,9 +75,10 @@ export function FeedScreen({ soundIds, onHome }) {
   }
 
   async function handleMic() {
-    const { status: result, heardOptions } = await listen(isCorrect)
+    const attempt = await listen(isCorrect)
+    const result = attempt.status
+    const nearMiss = result === 'missed' ? nearMissFrom(attempt, step.nearMisses) : null
     if (result === 'correct' || result === 'missed') {
-      const nearMiss = result === 'missed' ? findNearMiss(heardOptions, step.nearMisses) : null
       recordTry({ soundId: sound.id, word: step.word, correct: result === 'correct', swap: nearMiss?.swap })
     }
     if (result === 'correct') {
@@ -91,10 +92,9 @@ export function FeedScreen({ soundIds, onHome }) {
         setReaction(null)
       })
     } else if (result === 'missed') {
-      const nearMiss = findNearMiss(heardOptions, step.nearMisses)
       const { round: next, outcome } = feedMissed(round)
       setReaction('confused')
-      setTip(nearMiss?.heard ?? null)
+      setTip(nearMissBubble(nearMiss))
       if (outcome === 'retry') {
         const line = nearMiss ? LINES.stepCoach(sound, step, nearMiss.swap) : LINES.stepRetry(sound, step)
         afterSpeech(speak(line), 900, () => setReaction(null))
@@ -149,7 +149,7 @@ export function FeedScreen({ soundIds, onHome }) {
   const mood = reaction ?? (listening ? 'listening' : 'idle')
   let says = 'Feed me!'
   if (reaction === 'yum') says = 'Yum!'
-  if (reaction === 'confused') says = tip ? `Hmm? I heard “${tip}”!` : 'Hmm? Try again!'
+  if (reaction === 'confused') says = tip ?? 'Hmm? Try again!'
   if (motion === 'away') says = 'Let’s try another!'
 
   return (

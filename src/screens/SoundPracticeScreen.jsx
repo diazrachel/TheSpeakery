@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { GrownUpHelp } from '../components/GrownUpHelp.jsx'
 import { MicButton } from '../components/MicButton.jsx'
 import { SoundGuide } from '../components/SoundGuide.jsx'
-import { findNearMiss } from '../game/coach.js'
+import { nearMissBubble, nearMissFrom } from '../game/coach.js'
 import { recordTry } from '../game/progress.js'
 import { makeWordCheck } from '../game/wordCheck.js'
 import { Button, Headline, MarkedWord, Scene, SlowSpeakButton, SpeakButton } from '../components/ui.jsx'
@@ -34,8 +34,8 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   const afterSpeech = useAfterSpeech()
   const [reaction, setReaction] = useState(null)
   const [misses, setMisses] = useState(0)
-  // The near-miss word we heard on the last try (like "tea"), shown in the bubble.
-  const [heardNearMiss, setHeardNearMiss] = useState(null)
+  // The bubble for the last near miss (like "Hmm? I heard 'tea'!").
+  const [nearMissLine, setNearMissLine] = useState(null)
   const offerHelp = misses >= MISSES_BEFORE_HELP_OFFER
 
   useEffect(() => {
@@ -43,20 +43,20 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   }, [intro])
 
   async function handleMic() {
-    const { status: result, heardOptions } = await listen(isCorrect)
+    const attempt = await listen(isCorrect)
+    const result = attempt.status
+    const nearMiss = result === 'missed' ? nearMissFrom(attempt, practice.nearMisses) : null
     // Counts for the grown-up corner (on this device only, no voice saved).
     if (result === 'correct' || result === 'missed') {
-      const swap = result === 'missed' ? findNearMiss(heardOptions, practice.nearMisses)?.swap : null
-      recordTry({ soundId: sound.id, word: practice.say, correct: result === 'correct', swap })
+      recordTry({ soundId: sound.id, word: practice.say, correct: result === 'correct', swap: nearMiss?.swap })
     }
     if (result === 'correct') {
       setReaction('cheer')
       afterSpeech(speak(LINES.practiceSuccess(mode)), REACTION_MS, onDone)
     } else if (result === 'missed') {
       const missesNow = misses + 1
-      const nearMiss = findNearMiss(heardOptions, practice.nearMisses)
       setMisses(missesNow)
-      setHeardNearMiss(nearMiss?.heard ?? null)
+      setNearMissLine(nearMissBubble(nearMiss))
       setReaction('confused')
       let line = LINES.practiceRetry(sound)
       if (missesNow === MISSES_BEFORE_HELP_OFFER) line = LINES.helpOffer
@@ -79,7 +79,7 @@ export function SoundPracticeScreen({ sound, mode = 'intro', onDone }) {
   if (offerHelp) says = 'Want a grown-up to help?'
   if (reaction === 'confused') {
     if (offerHelp) says = 'Tricky one! Want a grown-up to help?'
-    else if (heardNearMiss) says = `Hmm? I heard “${heardNearMiss}”!`
+    else if (nearMissLine) says = nearMissLine
     else says = 'Hmm? Let’s try again!'
   }
   if (reaction === 'cheer') says = 'You did it!'

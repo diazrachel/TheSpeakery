@@ -118,3 +118,12 @@ choose which sounds to practice, and links to trusted resources. Everything is
 saved on the device only. For a demo, open the game with `?debug` and use the
 shelf buttons to unlock "Feed the dragon" quickly.
 
+## R sound check (tuning)
+
+R words also check whether the R sounded like a W (the browser alone can't
+tell "bwown" from "brown"). Open the game with `?debug` and say an R word: the
+debug box shows `R check: r / w / unsure (dip 0.xx)`. A real R usually has a
+dip around 0.5 to 0.75; a W-like R is around 0.85 or higher. If clear R's get
+flagged as W, raise `W_MIN` in `src/speech/rSoundCheck.js` (for
+example to 0.9). If W's slip through, lower `W_MIN` (for example to 0.83).
+

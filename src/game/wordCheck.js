@@ -23,6 +23,17 @@ import { exampleNearMiss, findNearMiss } from './coach.js'
 // Some browsers report 0 when they don't know. Then confidence is ignored.
 export const MIN_CONFIDENCE = 0.5
 
+// Turn the R sound check on or off (see speech/rSoundCheck.js).
+export const CHECK_R_SOUND = true
+
+// After the browser says a word was right, the R sound check gets a say:
+// if the R clearly sounded like a W, it counts as a near miss instead.
+// rCheck: from checkRSound(), or null if it couldn't run.
+export function applySoundCheck(status, rCheck) {
+  if (status === 'correct' && rCheck?.verdict === 'w') return { status: 'missed', soundSwap: 'w' }
+  return { status, soundSwap: null }
+}
+
 // Letters that can spell each target sound.
 const SOUND_LETTERS = { R: ['r'], S: ['s', 'c'], K: ['c', 'k', 'q'] }
 
@@ -65,6 +76,8 @@ export function makeWordCheck(sound, item) {
   }
 
   isCorrect.word = word
+  // R words also get a check of HOW the R sounded (speech/rSoundCheck.js).
+  isCorrect.checkR = CHECK_R_SOUND && sound.id === 'R'
   isCorrect.nearMisses = nearMisses
   isCorrect.demoNearMiss = exampleNearMiss(nearMisses)
   return isCorrect

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { emptyShelf, setShelf } from '../game/shelf.js'
 import { DEBUG_ON } from '../speech/debug.js'
+import { R_MAX, W_MIN } from '../speech/rSoundCheck.js'
 import { canRecognizeSpeech } from '../speech/recognition.js'
 
 // onSetShelf: lets testers fill or clear the treat shelf for a quick demo.
@@ -27,6 +28,11 @@ export function DebugPanel({ onSetShelf }) {
           <span>Wanted: {last.target}</span>
           <span>Heard: {last.heard || '(nothing)'}</span>
           <span>Sure: {last.confidence ? `${Math.round(last.confidence * 100)}%` : 'unknown'}</span>
+          {last.rCheck && (
+            <span>
+              R check: {last.rCheck.verdict} (dip {last.rCheck.ratio ?? '?'}; R ≤ {R_MAX}, W ≥ {W_MIN})
+            </span>
+          )}
           <span>
             Result: {last.status}
             {last.code ? ` (${last.code})` : ''}

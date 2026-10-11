@@ -117,13 +117,21 @@ def smushed():
     )
 
 
+def shift(dx, body):
+    # Slides a group of shapes sideways, to center it on the plate.
+    return f'<g transform="translate({dx} 0)">{body}</g>'
+
+
 def smores():
     base = plate()
+    # Steps 2-4 show both cracker halves (150 to 480), so slide them left 15 to center the pair.
+    # Step 5 is one stacked s'more (centered at 225), so slide it right 75 to the plate's center (300).
+    halves = cracker(150, 430) + cracker(330, 432, rotate=5)
     save('treat-smore-1.svg', base + cracker(150, 430, w=300, groove=True))
-    save('treat-smore-2.svg', base + cracker(150, 430) + cracker(330, 432, rotate=5))
-    save('treat-smore-3.svg', base + cracker(150, 430) + cracker(330, 432, rotate=5) + chocolate())
-    save('treat-smore-4.svg', base + cracker(150, 430) + cracker(330, 432, rotate=5) + chocolate() + marshmallow())
-    save('treat-smore-5.svg', base + cracker(150, 430) + chocolate() + smushed())
+    save('treat-smore-2.svg', base + shift(-15, halves))
+    save('treat-smore-3.svg', base + shift(-15, halves + chocolate()))
+    save('treat-smore-4.svg', base + shift(-15, halves + chocolate() + marshmallow()))
+    save('treat-smore-5.svg', base + shift(75, cracker(150, 430) + chocolate() + smushed()))
 
 
 # ---------- Cinnamon roll ----------

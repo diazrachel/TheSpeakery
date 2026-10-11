@@ -8,6 +8,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { showDebug } from './debug.js'
 import { canRecognizeSpeech, listenForWord } from './recognition.js'
+import { applySoundCheck } from '../game/wordCheck.js'
+import { startRecording } from './micRecorder.js'
+import { checkRSound } from './rSoundCheck.js'
 import { letMicSettle, stopSpeaking } from './speak.js'
 
 // Statuses that show a message on screen.
@@ -16,8 +19,9 @@ const MESSAGE_STATUSES = ['no-speech', 'mic-blocked', 'no-mic', 'network', 'erro
 // status: idle | listening | no-speech | mic-blocked | no-mic | network | error | unsupported
 //
 // listen(isCorrect) takes a check from src/game/wordCheck.js and resolves to
-// { status, heardOptions }. heardOptions is what the browser thinks it heard,
-// for picking a tip. Don't save or log it.
+// { status, heardOptions, soundSwap }. heardOptions is what the browser thinks
+// it heard, for picking a tip. soundSwap is 'w' when the R sound check heard a
+// W instead of an R. Don't save or log any of it.
 export function useWordListener() {
   const [status, setStatus] = useState('idle')
   const activeRef = useRef(null)
@@ -33,6 +37,9 @@ export function useWordListener() {
 
     stopSpeaking() // don't let the game hear its own voice
     setStatus('listening')
+    activeRef.current = { starting: true }
+    // For R words, also keep the sound in memory to check HOW the R sounded.
+    const recorder = isCorrect.checkR ? await startRecording() : null
 
     let resolveDemo
     const demoKeyPress = new Promise((resolve) => {
@@ -50,19 +57,26 @@ export function useWordListener() {
 
     const result = await Promise.race([session.promise, demoKeyPress])
     session.cancel()
+    const audio = await recorder?.stop()
+    let rCheck = null
+    let soundSwap = null
+    if (audio && result.code !== 'demo' && result.status === 'correct') {
+      rCheck = checkRSound(audio.samples, audio.sampleRate)
+      ;({ status: result.status, soundSwap } = applySoundCheck(result.status, rCheck))
+    }
     letMicSettle() // let the sound settle before the dragon answers
     activeRef.current = null
 
-    showDebug({ target: word, ...result })
+    showDebug({ target: word, ...result, rCheck })
     setStatus(MESSAGE_STATUSES.includes(result.status) ? result.status : 'idle')
-    return { status: result.status, heardOptions: result.heardOptions ?? [] }
+    return { status: result.status, heardOptions: result.heardOptions ?? [], soundSwap }
   }, [])
 
   // Demo keys: Y = correct, N = missed, M = near miss (only while listening).
   useEffect(() => {
     function onKeyDown(event) {
       const active = activeRef.current
-      if (!active) return
+      if (!active?.resolveDemo) return
       const key = event.key.toLowerCase()
       if (key === 'y') active.resolveDemo({ status: 'correct', heard: '(Y key)', heardOptions: [], code: 'demo' })
       if (key === 'n') active.resolveDemo({ status: 'missed', heard: '(N key)', heardOptions: [], code: 'demo' })
@@ -76,7 +90,7 @@ export function useWordListener() {
   }, [])
 
   // Stop listening if the screen closes.
-  useEffect(() => () => activeRef.current?.cancel(), [])
+  useEffect(() => () => activeRef.current?.cancel?.(), [])
 
   return { status, listen }
 }

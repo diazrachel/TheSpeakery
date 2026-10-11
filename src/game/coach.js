@@ -22,6 +22,21 @@ export function findNearMiss(heardOptions = [], nearMisses = {}) {
   return null
 }
 
+// The near miss for a try: a sound swap found by listening to the sound itself
+// (see speech/rSoundCheck.js), or else a near-miss word the browser heard.
+// attempt: what useWordListener's listen() returned.
+export function nearMissFrom(attempt, nearMisses = {}) {
+  if (attempt.soundSwap) return { heard: null, swap: attempt.soundSwap, bySound: true }
+  return findNearMiss(attempt.heardOptions, nearMisses)
+}
+
+// The dragon's speech bubble for a near miss.
+export function nearMissBubble(nearMiss) {
+  if (!nearMiss) return null
+  if (nearMiss.bySound) return 'Hmm? That R sounded like a W!'
+  return `Hmm? I heard “${nearMiss.heard}”!`
+}
+
 // The first near-miss word in the list. Used by the M demo key.
 export function exampleNearMiss(nearMisses = {}) {
   return Object.values(nearMisses).flat()[0] ?? ''

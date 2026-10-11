@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { MicButton } from '../components/MicButton.jsx'
 import { Art, Button, Headline, MarkedWord, Scene, SlowSpeakButton } from '../components/ui.jsx'
-import { findNearMiss } from '../game/coach.js'
+import { nearMissBubble, nearMissFrom } from '../game/coach.js'
 import { MISSES_BEFORE_PRACTICE } from '../game/gameReducer.js'
 import { recordTry } from '../game/progress.js'
 import { makeWordCheck } from '../game/wordCheck.js'
@@ -30,8 +30,8 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   // reaction: null | 'cheer' | 'confused'
   const [reaction, setReaction] = useState(null)
   const [misses, setMisses] = useState(0)
-  // The near-miss word we heard on the last try (like "way"), shown in the bubble.
-  const [heardNearMiss, setHeardNearMiss] = useState(null)
+  // The bubble for the last near miss (like "Hmm? I heard 'way'!").
+  const [nearMissLine, setNearMissLine] = useState(null)
   // True while this step's Rive animation plays (only for steps that have one).
   const [animating, setAnimating] = useState(false)
   const animationFinished = useRef(null)
@@ -43,11 +43,12 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   }, [spoken])
 
   async function handleMic() {
-    const { status: result, heardOptions } = await listen(isCorrect)
+    const attempt = await listen(isCorrect)
+    const result = attempt.status
+    const nearMiss = result === 'missed' ? nearMissFrom(attempt, step.nearMisses) : null
     // Counts for the grown-up corner (on this device only, no voice saved).
     if (result === 'correct' || result === 'missed') {
-      const swap = result === 'missed' ? findNearMiss(heardOptions, step.nearMisses)?.swap : null
-      recordTry({ soundId: sound.id, word: step.word, correct: result === 'correct', swap })
+      recordTry({ soundId: sound.id, word: step.word, correct: result === 'correct', swap: nearMiss?.swap })
     }
     if (result === 'correct') {
       setReaction('cheer')
@@ -65,9 +66,8 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
       afterSpeech(Promise.all([speak(LINES.stepCheer), animationDone]), REACTION_MS, onCorrect)
     } else if (result === 'missed') {
       const missesNow = misses + 1
-      const nearMiss = findNearMiss(heardOptions, step.nearMisses)
       setMisses(missesNow)
-      setHeardNearMiss(nearMiss?.heard ?? null)
+      setNearMissLine(nearMissBubble(nearMiss))
       setReaction('confused')
       if (missesNow >= MISSES_BEFORE_PRACTICE) {
         // Missed it again: go practice the sound, then come back to this word.
@@ -92,7 +92,7 @@ export function BakeScreen({ sound, stepIndex, onCorrect, onMissed, onSkip }) {
   }
   const mood = reaction ?? (listening ? 'listening' : 'idle')
   let confusedLine = misses >= MISSES_BEFORE_PRACTICE ? 'Hmm? Let’s practice!' : 'Hmm? Try again!'
-  if (heardNearMiss && misses < MISSES_BEFORE_PRACTICE) confusedLine = `Hmm? I heard “${heardNearMiss}”!`
+  if (nearMissLine && misses < MISSES_BEFORE_PRACTICE) confusedLine = nearMissLine
   const says = reaction === 'cheer' ? 'You did it!' : reaction === 'confused' ? confusedLine : null
 
   return (
