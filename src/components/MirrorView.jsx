@@ -33,8 +33,12 @@ export function MirrorView() {
         // The mirror closed while we were asking: turn the camera right back off.
         if (closed) return camera.getTracks().forEach((track) => track.stop())
         stream = camera
-        if (video.current) video.current.srcObject = camera
-        setStatus('on')
+        const el = video.current
+        if (!el) return
+        el.srcObject = camera
+        // Safari doesn't always start a live camera on its own, so start it here.
+        // The mirror shows once the video is actually playing (see onPlaying below).
+        await el.play().catch(() => {})
       } catch (error) {
         const blocked = error?.name === 'NotAllowedError' || error?.name === 'SecurityError'
         if (!closed) setStatus(blocked ? 'blocked' : 'unavailable')
@@ -53,7 +57,15 @@ export function MirrorView() {
   return (
     <figure className="mirror">
       <div className={`mirror__glass ${status === 'on' ? 'mirror__glass--on' : ''}`}>
-        <video ref={video} className="mirror__video" autoPlay muted playsInline aria-label="Mirror: your face" />
+        <video
+          ref={video}
+          className="mirror__video"
+          autoPlay
+          muted
+          playsInline
+          aria-label="Mirror: your face"
+          onPlaying={() => setStatus('on')}
+        />
         {status === 'starting' && <span className="mirror__note">Opening the mirror…</span>}
         {problem && <span className="mirror__note mirror__note--problem">{problem}</span>}
         <span className="mirror__shine" aria-hidden="true" />
